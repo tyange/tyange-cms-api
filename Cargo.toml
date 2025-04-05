@@ -1,0 +1,19 @@
+[package]
+name = "tyange-cms"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+poem = { version = "3.1.7", features = [
+    "multipart",
+] }
+serde = { version = "1.0.219", features = [
+    "derive",
+] }
+sqlx = { version = "0.8.3", features = [
+    "sqlite",
+    "runtime-tokio",
+] }
+tokio = { version = "1.44.1", features = [
+    "rt-multi-thread",
+] }
