@@ -5,7 +5,7 @@ mod routes;
 use std::{path::PathBuf, sync::Arc};
 
 use db::init_db;
-use poem::{listener::TcpListener, EndpointExt, Route, Server};
+use poem::{listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use routes::upload_post::upload_post;
 use sqlx::{Pool, Sqlite, SqlitePool};
 
@@ -38,9 +38,15 @@ async fn main() -> Result<(), std::io::Error> {
         upload_dir: PathBuf::from("./uploads"),
     });
 
-    let app = configure_routes().data(state);
+    let app = configure_routes().data(state).with(
+        Cors::new()
+            .allow_origin("http://localhost:3000")
+            .allow_methods(vec!["GET", "POST"])
+            .allow_credentials(true)
+            .allow_headers(vec!["content-type"]),
+    );
 
-    Server::new(TcpListener::bind("0.0.0.0:3000"))
+    Server::new(TcpListener::bind("0.0.0.0:4000"))
         .run(app)
         .await
 }

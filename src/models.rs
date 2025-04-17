@@ -9,5 +9,7 @@ pub struct UploadResponse {
 pub struct UploadPostRequest {
     pub title: String,
     pub description: String,
+    pub published_at: String,
+    pub tags: String,
     pub content: String,
 }

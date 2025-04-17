@@ -17,3 +17,10 @@ sqlx = { version = "0.8.3", features = [
 tokio = { version = "1.44.1", features = [
     "rt-multi-thread",
 ] }
+
+[dependencies.uuid]
+version = "1.16.0"
+# Lets you generate random UUIDs
+features = [
+    "v4",
+]
