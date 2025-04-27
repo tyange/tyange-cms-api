@@ -13,3 +13,9 @@ pub struct UploadPostRequest {
     pub tags: String,
     pub content: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub user_id: String,
+    pub password: String,
+}

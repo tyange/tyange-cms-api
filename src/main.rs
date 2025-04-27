@@ -6,7 +6,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use db::init_db;
 use poem::{listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
-use routes::upload_post::upload_post;
+use routes::{login::login, upload_post::upload_post};
 use sqlx::{Pool, Sqlite, SqlitePool};
 
 pub struct AppState {
@@ -15,7 +15,9 @@ pub struct AppState {
 }
 
 fn configure_routes() -> Route {
-    Route::new().at("/upload-post", poem::post(upload_post))
+    Route::new()
+        .at("/upload-post", poem::post(upload_post))
+        .at("/login", poem::post(login))
 }
 
 #[tokio::main]
@@ -46,7 +48,7 @@ async fn main() -> Result<(), std::io::Error> {
             .allow_headers(vec!["content-type"]),
     );
 
-    Server::new(TcpListener::bind("0.0.0.0:4000"))
+    Server::new(TcpListener::bind("0.0.0.0:8080"))
         .run(app)
         .await
 }

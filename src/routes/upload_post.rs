@@ -21,7 +21,7 @@ pub async fn upload_post(
 
     let result = sqlx::query(
         r#"
-        INSERT INTO posts (id, title, description, published_at, tags, content)
+        INSERT INTO posts (post_id, title, description, published_at, tags, content)
         VALUES (?, ?, ?, ?, ?, ?)
         "#,
     )

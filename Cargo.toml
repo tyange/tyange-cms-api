@@ -1,9 +1,10 @@
 [package]
-name = "tyange-cms"
+name = "tyange-cms-backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bcrypt = "0.17.0"
 poem = { version = "3.1.7", features = [
     "multipart",
 ] }
