@@ -5,13 +5,16 @@ use poem::{
     handler,
     http::StatusCode,
     web::{Data, Json},
-    Error, Response,
+    Body, Response,
 };
 
 use sqlx::Row;
 use tyange_cms_backend::auth::jwt::Claims;
 
-use crate::{models::LoginRequest, AppState};
+use crate::{
+    models::{LoginRequest, LoginResponse},
+    AppState,
+};
 
 #[handler]
 pub async fn login(
@@ -53,7 +56,7 @@ pub async fn login(
             Ok(value) => value,
             Err(e) => {
                 eprintln!("Server configuration error: {:?}", e);
-                return Err(Error::from_string(
+                return Err(poem::Error::from_string(
                     "Server configuration error.",
                     StatusCode::INTERNAL_SERVER_ERROR,
                 ));
@@ -63,16 +66,47 @@ pub async fn login(
             Ok(value) => value,
             Err(e) => {
                 eprintln!("Server configuration error: {:?}", e);
-                return 
+                return Err(poem::Error::from_string(
+                    "Server configuration error.",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ));
             }
-        }
+        };
 
         let access_secret = access_token_secret.as_bytes();
-        let access_token = Claims::create_access_token(&user_id, &access_secret);
+        let access_token = Claims::create_access_token(&user_id, &access_secret).map_err(|e| {
+            eprintln!("Server configuration error: {:?}", e);
+            poem::Error::from_string(
+                "Can not create access token.",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?;
+
+        let refresh_secret = refresh_token_secret.as_bytes();
+        let refresh_token =
+            Claims::create_refresh_token(&user_id, refresh_secret).map_err(|e| {
+                poem::Error::from_string(
+                    "Can not create refresh token.",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?;
+
+        let login_response = LoginResponse {
+            access_token,
+            refresh_token,
+        };
+
+        let json_body = serde_json::to_string(&login_response).map_err(|_| {
+            poem::Error::from_string(
+                "JSON serialization error",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?;
 
         Ok(Response::builder()
             .status(StatusCode::OK)
-            .body("Login successful"))
+            .content_type("application/json") // header 대신 content_type 메서드 사용
+            .body(Body::from(json_body)))
     } else {
         println!("로그인 실패: 잘못된 비밀번호");
         Err(poem::Error::from_string(

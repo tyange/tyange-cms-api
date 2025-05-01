@@ -2073,6 +2073,7 @@ dependencies = [
  "jsonwebtoken",
  "poem",
  "serde",
+ "serde_json",
  "sqlx",
  "tokio",
  "uuid",

@@ -14,8 +14,14 @@ pub struct UploadPostRequest {
     pub content: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LoginRequest {
     pub user_id: String,
     pub password: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LoginResponse {
+    pub access_token: String,
+    pub refresh_token: String,
 }
