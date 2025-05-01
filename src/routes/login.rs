@@ -1,14 +1,15 @@
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
 use bcrypt::verify;
 use poem::{
     handler,
-    http::{Error, StatusCode},
+    http::StatusCode,
     web::{Data, Json},
-    Response,
+    Error, Response,
 };
 
 use sqlx::Row;
+use tyange_cms_backend::auth::jwt::Claims;
 
 use crate::{models::LoginRequest, AppState};
 
@@ -47,7 +48,28 @@ pub async fn login(
 
     if password_matches {
         println!("로그인 성공: {}", user_id);
-        // TODO: generate token
+
+        let access_token_secret = match env::var("JWT_ACCESS_SECRET") {
+            Ok(value) => value,
+            Err(e) => {
+                eprintln!("Server configuration error: {:?}", e);
+                return Err(Error::from_string(
+                    "Server configuration error.",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ));
+            }
+        };
+        let refresh_token_secret = match env::var("JWT_REFRESH_SECRET") {
+            Ok(value) => value,
+            Err(e) => {
+                eprintln!("Server configuration error: {:?}", e);
+                return 
+            }
+        }
+
+        let access_secret = access_token_secret.as_bytes();
+        let access_token = Claims::create_access_token(&user_id, &access_secret);
+
         Ok(Response::builder()
             .status(StatusCode::OK)
             .body("Login successful"))

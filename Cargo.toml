@@ -5,6 +5,9 @@ edition = "2021"
 
 [dependencies]
 bcrypt = "0.17.0"
+chrono = "0.4.40"
+dotenv = "0.15.0"
+jsonwebtoken = "9.3.1"
 poem = { version = "3.1.7", features = [
     "multipart",
 ] }

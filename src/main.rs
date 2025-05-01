@@ -2,6 +2,7 @@ mod db;
 mod models;
 mod routes;
 
+use dotenv::dotenv;
 use std::{path::PathBuf, sync::Arc};
 
 use db::init_db;
@@ -22,6 +23,8 @@ fn configure_routes() -> Route {
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    dotenv().ok();
+
     let db_path = "./.db/database.db";
     let db_url = format!("sqlite:{}?mode=rwc", db_path);
     println!("Database URL: {}", db_url);
