@@ -105,7 +105,7 @@ pub async fn login(
 
         Ok(Response::builder()
             .status(StatusCode::OK)
-            .content_type("application/json") // header 대신 content_type 메서드 사용
+            .content_type("application/json")
             .body(Body::from(json_body)))
     } else {
         println!("로그인 실패: 잘못된 비밀번호");
