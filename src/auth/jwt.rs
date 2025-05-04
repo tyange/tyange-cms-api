@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, errors::Error, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use poem::{http::StatusCode, Error};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,16 +30,27 @@ impl Claims {
 
     fn to_token(&self, secret: &[u8]) -> Result<String, Error> {
         encode(&Header::default(), &self, &EncodingKey::from_secret(secret))
+            .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))
     }
 
-    fn from_token(token: &str, secret: &[u8]) -> Result<Self, Error> {
-        let token_data = decode::<Claims>(
+    pub fn validate_access_token(token: &str, secret: &[u8]) -> Result<bool, Error> {
+        match decode::<Claims>(
             token,
             &DecodingKey::from_secret(secret),
             &Validation::default(),
-        )?;
-
-        Ok(token_data.claims)
+        ) {
+            Ok(token_data) => match usize::try_from(Utc::now().timestamp()) {
+                Ok(converted) => {
+                    let exp = token_data.claims.exp;
+                    return Ok(converted > exp);
+                }
+                Err(e) => Err(Error::from_string(
+                    e.to_string(),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )),
+            },
+            Err(e) => Err(Error::from_string(e.to_string(), StatusCode::UNAUTHORIZED)),
+        }
     }
 
     pub fn create_access_token(user_id: &str, secret: &[u8]) -> Result<String, Error> {

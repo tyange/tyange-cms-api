@@ -73,18 +73,20 @@ pub async fn login(
             }
         };
 
-        let access_secret = access_token_secret.as_bytes();
-        let access_token = Claims::create_access_token(&user_id, &access_secret).map_err(|e| {
-            eprintln!("Server configuration error: {:?}", e);
-            poem::Error::from_string(
-                "Can not create access token.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })?;
+        let access_token_secret_bytes = access_token_secret.as_bytes();
+        let access_token = Claims::create_access_token(&user_id, &access_token_secret_bytes)
+            .map_err(|e| {
+                eprintln!("Server configuration error: {:?}", e);
+                poem::Error::from_string(
+                    "Can not create access token.",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?;
 
-        let refresh_secret = refresh_token_secret.as_bytes();
-        let refresh_token =
-            Claims::create_refresh_token(&user_id, refresh_secret).map_err(|e| {
+        let refresh_token_secret_bytes = refresh_token_secret.as_bytes();
+        let refresh_token = Claims::create_refresh_token(&user_id, &refresh_token_secret_bytes)
+            .map_err(|e| {
+                eprintln!("Server configuration error: {:?}", e);
                 poem::Error::from_string(
                     "Can not create refresh token.",
                     StatusCode::INTERNAL_SERVER_ERROR,
