@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     sub: String,
-    exp: usize,
+    pub exp: usize,
     iat: usize,
     token_type: String,
 }
@@ -28,21 +28,21 @@ impl Claims {
         }
     }
 
-    fn to_token(&self, secret: &[u8]) -> Result<String, Error> {
+    pub fn to_token(&self, secret: &[u8]) -> Result<String, Error> {
         encode(&Header::default(), &self, &EncodingKey::from_secret(secret))
             .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))
     }
 
-    pub fn validate_access_token(token: &str, secret: &[u8]) -> Result<bool, Error> {
+    pub fn validate_token(token: &str, secret: &[u8]) -> Result<bool, Error> {
         match decode::<Claims>(
             token,
             &DecodingKey::from_secret(secret),
             &Validation::default(),
         ) {
             Ok(token_data) => match usize::try_from(Utc::now().timestamp()) {
-                Ok(converted) => {
+                Ok(current_timestamp) => {
                     let exp = token_data.claims.exp;
-                    return Ok(converted > exp);
+                    return Ok(current_timestamp < exp);
                 }
                 Err(e) => Err(Error::from_string(
                     e.to_string(),

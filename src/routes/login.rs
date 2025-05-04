@@ -50,8 +50,6 @@ pub async fn login(
     let password_matches = verify(&payload.password, &stored_hash).unwrap_or(false);
 
     if password_matches {
-        println!("로그인 성공: {}", user_id);
-
         let access_token_secret = match env::var("JWT_ACCESS_SECRET") {
             Ok(value) => value,
             Err(e) => {
@@ -104,6 +102,8 @@ pub async fn login(
                 StatusCode::INTERNAL_SERVER_ERROR,
             )
         })?;
+
+        println!("로그인 성공: {}", user_id);
 
         Ok(Response::builder()
             .status(StatusCode::OK)

@@ -31,7 +31,7 @@ impl<E: Endpoint> Endpoint for AuthImpl<E> {
         })?;
 
         let secret_bytes = secret.as_bytes();
-        let is_valid = Claims::validate_access_token(
+        let is_valid = Claims::validate_token(
             token.to_str().map_err(|e| {
                 Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
             })?,
