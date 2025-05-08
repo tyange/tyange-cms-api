@@ -5,6 +5,7 @@ use poem::{
     web::{Data, Json},
     Error,
 };
+use sqlx::query;
 use uuid::Uuid;
 
 use crate::{
@@ -19,7 +20,7 @@ pub async fn upload_post(
 ) -> Result<Json<UploadResponse>, Error> {
     let post_id = Uuid::new_v4().to_string();
 
-    let result = sqlx::query(
+    let result = query(
         r#"
         INSERT INTO posts (post_id, title, description, published_at, tags, content)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -29,7 +30,7 @@ pub async fn upload_post(
     .bind(&payload.title)
     .bind(&payload.description)
     .bind(&payload.published_at)
-    .bind(&payload.tags)
+    .bind(&payload.tags.join(", "))
     .bind(&payload.content)
     .execute(&data.db)
     .await;
