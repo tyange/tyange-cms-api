@@ -8,14 +8,14 @@ use poem::{
 };
 use sqlx::{query_as, Sqlite};
 
-use crate::models::PostResponseDb;
-use crate::{models::PostResponse, AppState};
+use crate::models::{Post, PostResponseDb};
+use crate::{AppState};
 
 #[handler]
 pub async fn get_post(
     Path(post_id): Path<String>,
     data: Data<&Arc<AppState>>,
-) -> Result<Json<PostResponse>, Error> {
+) -> Result<Json<Post>, Error> {
     let result = query_as::<Sqlite, PostResponseDb>(
         r#"
         SELECT post_id, title, description, published_at, tags, content
@@ -31,7 +31,7 @@ pub async fn get_post(
 
     match result {
         Ok(Some(db_post)) => {
-            let post_response = PostResponse::from(db_post);
+            let post_response = Post::from(db_post);
             Ok(Json(post_response))
         }
         Ok(None) => {

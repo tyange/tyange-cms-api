@@ -2,6 +2,38 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 #[derive(Debug, Serialize)]
+pub struct Post {
+    pub post_id: String,
+    pub title: String,
+    pub description: String,
+    pub published_at: String,
+    pub tags: Vec<String>,
+    pub content: String,
+}
+
+impl From<PostResponseDb> for Post {
+    fn from(db: PostResponseDb) -> Self {
+        let tags = if db.tags.is_empty() {
+            Vec::new()
+        } else {
+            db.tags.split(',')
+                .map(|s| s.trim().to_string())
+                .collect()
+        };
+
+        Self {
+            post_id: db.post_id,
+            title: db.title,
+            description: db.description,
+            published_at: db.published_at,
+            tags,
+            content: db.content,
+        }
+    }
+}
+
+
+#[derive(Debug, Serialize)]
 pub struct UploadResponse {
     pub post_id: String,
 }
@@ -47,23 +79,7 @@ pub struct PostResponse {
     pub content: String,
 }
 
-impl From<PostResponseDb> for PostResponse {
-    fn from(db: PostResponseDb) -> Self {
-        let tags = if db.tags.is_empty() {
-            Vec::new()
-        } else {
-            db.tags.split(',')
-                .map(|s| s.trim().to_string())
-                .collect()
-        };
-
-        Self {
-            post_id: db.post_id,
-            title: db.title,
-            description: db.description,
-            published_at: db.published_at,
-            tags,
-            content: db.content,
-        }
-    }
+#[derive(Debug, Serialize)]
+pub struct PostsResponse {
+    pub posts: Vec<Post>
 }
