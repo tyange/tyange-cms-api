@@ -24,8 +24,8 @@ fn configure_routes() -> Route {
         .at("/posts", get(get_posts))
         .at("/post/:post_id", get(get_post))
         .at("/pot/upload", post(upload_post).with(Auth))
-        .at("/post/update/:post_id", put(update_post))
-        .at("/post/delete/:post_id", delete(delete_post))
+        .at("/post/update/:post_id", put(update_post).with(Auth))
+        .at("/post/delete/:post_id", delete(delete_post).with(Auth))
         .at("/login", post(login))
 }
 
