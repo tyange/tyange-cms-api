@@ -8,9 +8,10 @@ use middlewares::auth_middleware::Auth;
 use std::{path::PathBuf, sync::Arc};
 
 use db::init_db;
-use poem::{get, listener::TcpListener, middleware::Cors, post, EndpointExt, Route, Server};
+use poem::{get, listener::TcpListener, middleware::Cors, post, put, EndpointExt, Route, Server};
 use routes::{login::login, get_posts::get_posts, get_post::get_post, upload_post::upload_post};
 use sqlx::{Pool, Sqlite, SqlitePool};
+use crate::routes::update_post::update_post;
 
 pub struct AppState {
     pub db: Pool<Sqlite>,
@@ -21,7 +22,8 @@ fn configure_routes() -> Route {
     Route::new()
         .at("/posts", get(get_posts))
         .at("/post/:post_id", get(get_post))
-        .at("/upload-post", post(upload_post).with(Auth))
+        .at("/pot/upload", post(upload_post).with(Auth))
+        .at("/post/update/:post_id", put(update_post))
         .at("/login", post(login))
 }
 

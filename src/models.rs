@@ -2,6 +2,13 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 #[derive(Debug, Serialize)]
+pub struct CustomResponse<T> {
+    pub status: bool,
+    pub data: Option<T>,
+    pub message: Option<String>
+}
+
+#[derive(Debug, Serialize)]
 pub struct Post {
     pub post_id: String,
     pub title: String,
@@ -82,4 +89,13 @@ pub struct PostResponse {
 #[derive(Debug, Serialize)]
 pub struct PostsResponse {
     pub posts: Vec<Post>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdatePostRequest {
+    pub title: String,
+    pub description: String,
+    pub published_at: String,
+    pub tags: String,
+    pub content: String,
 }
