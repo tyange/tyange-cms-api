@@ -99,3 +99,8 @@ pub struct UpdatePostRequest {
     pub tags: String,
     pub content: String,
 }
+
+#[derive(Debug, Serialize)]
+pub struct DeletePostResponse {
+    pub post_id: String
+}
