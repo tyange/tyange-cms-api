@@ -1,6 +1,6 @@
 use crate::models::{CustomResponse, Post, PostResponse, UpdatePostRequest};
 use crate::AppState;
-use poem::{handler, Error};
+use poem::{handler, Error, Request};
 use poem::http::{StatusCode};
 use poem::web::{Data, Json, Path};
 use sqlx::query;
@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 #[handler]
 pub async fn update_post(
+    req: &Request,
     Path(post_id): Path<String>,
     Json(payload): Json<UpdatePostRequest>,
     data: Data<&Arc<AppState>>,

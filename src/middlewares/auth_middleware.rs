@@ -1,6 +1,6 @@
 use std::env;
 
-use poem::{http::StatusCode, Endpoint, Error, Middleware, Response};
+use poem::{http::StatusCode, Endpoint, Error, Middleware, Request, Response};
 use tyange_cms_backend::auth::jwt::Claims;
 
 pub struct Auth;
@@ -9,16 +9,18 @@ impl<E: Endpoint> Middleware<E> for Auth {
     type Output = AuthImpl<E>;
 
     fn transform(&self, ep: E) -> Self::Output {
-        AuthImpl(ep)
+        AuthImpl { ep }
     }
 }
 
-pub struct AuthImpl<E>(E);
+pub struct AuthImpl<E> {
+    ep: E,
+}
 
 impl<E: Endpoint> Endpoint for AuthImpl<E> {
-    type Output = Response;
+    type Output = E::Output;
 
-    async fn call(&self, req: poem::Request) -> poem::Result<Self::Output, Error> {
+    async fn call(&self, req: Request) -> Result<Self::Output, Error> {
         let token = req.headers().get("Authorization").ok_or_else(|| {
             Error::from_string("Authorization header is required", StatusCode::UNAUTHORIZED)
         })?;
@@ -40,9 +42,7 @@ impl<E: Endpoint> Endpoint for AuthImpl<E> {
         .map_err(|e| Error::from_string(e.to_string(), StatusCode::UNAUTHORIZED))?;
 
         if is_valid {
-            Ok(Response::builder()
-                .status(StatusCode::OK)
-                .body("허용된 유저입니다."))
+            self.ep.call(req).await
         } else {
             Err(Error::from_string(
                 "인증되지 않은 유저는 접근할 수 없습니다.",

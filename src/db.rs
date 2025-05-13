@@ -11,6 +11,7 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
             published_at DATETIME NOT NULL,
             tags TEXT,
             content TEXT NOT NULL,
+            writer_id TEXT NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         "#,

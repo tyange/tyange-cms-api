@@ -1,14 +1,14 @@
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use poem::{http::StatusCode, Error};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    sub: String,
+    pub sub: String,
     pub exp: usize,
-    iat: usize,
-    token_type: String,
+    pub iat: usize,
+    pub token_type: String,
 }
 
 impl Claims {
@@ -33,12 +33,27 @@ impl Claims {
             .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))
     }
 
-    pub fn validate_token(token: &str, secret: &[u8]) -> Result<bool, Error> {
-        match decode::<Claims>(
+    pub fn from_token(token: &str, secret: &[u8]) -> Result<TokenData<Claims>, Error> {
+        decode::<Claims>(
             token,
             &DecodingKey::from_secret(secret),
             &Validation::default(),
-        ) {
+        )
+        .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))
+    }
+
+    pub fn validate_user_id(user_id: &str, token: &str, secret: &[u8]) -> Result<bool, Error> {
+        match Self::from_token(&token, &secret) {
+            Ok(token_data) => Ok(user_id == token_data.claims.sub),
+            Err(e) => Err(Error::from_string(
+                e.to_string(),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )),
+        }
+    }
+
+    pub fn validate_token(token: &str, secret: &[u8]) -> Result<bool, Error> {
+        match Self::from_token(token, secret) {
             Ok(token_data) => match usize::try_from(Utc::now().timestamp()) {
                 Ok(current_timestamp) => {
                     let exp = token_data.claims.exp;
