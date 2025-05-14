@@ -33,7 +33,7 @@ impl Claims {
             .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))
     }
 
-    pub fn from_token(token: &str, secret: &[u8]) -> Result<TokenData<Claims>, Error> {
+    pub fn from_token(token: &str, secret: &[ u8]) -> Result<TokenData<Claims>, Error> {
         decode::<Claims>(
             token,
             &DecodingKey::from_secret(secret),
