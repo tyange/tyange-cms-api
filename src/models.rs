@@ -1,5 +1,11 @@
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, Pool, Sqlite};
+
+pub struct AppState {
+    pub db: Pool<Sqlite>,
+    pub upload_dir: PathBuf,
+}
 
 #[derive(Debug, Serialize)]
 pub struct CustomResponse<T> {
