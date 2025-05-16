@@ -29,24 +29,33 @@ impl Claims {
     }
 
     pub fn to_token(&self, secret: &[u8]) -> Result<String, Error> {
-        encode(&Header::default(), &self, &EncodingKey::from_secret(secret))
-            .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))
+        encode(&Header::default(), &self, &EncodingKey::from_secret(secret)).map_err(|e| {
+            Error::from_string(
+                format!("to token error with: {}", e.to_string()),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })
     }
 
-    pub fn from_token(token: &str, secret: &[ u8]) -> Result<TokenData<Claims>, Error> {
+    pub fn from_token(token: &str, secret: &[u8]) -> Result<TokenData<Claims>, Error> {
         decode::<Claims>(
             token,
             &DecodingKey::from_secret(secret),
             &Validation::default(),
         )
-        .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))
+        .map_err(|e| {
+            Error::from_string(
+                format!("from token error with: {}", e.to_string()),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })
     }
 
     pub fn validate_user_id(user_id: &str, token: &str, secret: &[u8]) -> Result<bool, Error> {
         match Self::from_token(&token, &secret) {
             Ok(token_data) => Ok(user_id == token_data.claims.sub),
             Err(e) => Err(Error::from_string(
-                e.to_string(),
+                format!("validate user id error with: {}", e.to_string()),
                 StatusCode::INTERNAL_SERVER_ERROR,
             )),
         }
@@ -60,7 +69,7 @@ impl Claims {
                     return Ok(current_timestamp < exp);
                 }
                 Err(e) => Err(Error::from_string(
-                    e.to_string(),
+                    format!("validate token error with: {}", e.to_string()),
                     StatusCode::INTERNAL_SERVER_ERROR,
                 )),
             },

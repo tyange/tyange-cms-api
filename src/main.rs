@@ -15,8 +15,6 @@ use crate::models::AppState;
 use crate::routes::delete_post::delete_post;
 use crate::routes::update_post::update_post;
 
-
-
 fn configure_routes() -> Route {
     Route::new()
         .at("/posts", get(get_posts))
