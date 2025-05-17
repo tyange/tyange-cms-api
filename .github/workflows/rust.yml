@@ -1,28 +1,29 @@
 name: Rust
-
 on:
   push:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
-
 env:
   CARGO_TERM_COLOR: always
-
 jobs:
   build:
-
     runs-on: self-hosted
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Create .env file
-      run: |
-        echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" > .env
-        echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> .env
-    - name: Build
-      run: cargo build --release --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Restart service
-      run: sudo systemctl restart tyange-cms-backend.service
+      - uses: actions/checkout@v4
+      - name: Create .env file
+        run: |
+          echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" > .env
+          echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> .env
+      - name: Build
+        run: cargo build --release --verbose
+      - name: Run tests
+        run: cargo test --verbose
+      - name: Stop service
+        run: sudo systemctl stop tyange-cms-backend.service
+      - name: Copy files to service location
+        run: |
+          cp target/release/tyange-cms-backend ${{ secrets.SERVICE_BINARY_PATH }}
+          cp .env ${{ secrets.SERVICE_ENV_PATH }}
+      - name: Start service
+        run: sudo systemctl start tyange-cms-backend.service
