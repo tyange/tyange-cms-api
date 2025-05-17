@@ -56,7 +56,7 @@ pub async fn update_post(
                 }
             }
             Err(err) => Err(Error::from_string(
-                err.to_string(),
+                format!("Error update posts: {}", err),
                 StatusCode::INTERNAL_SERVER_ERROR,
             )),
         }

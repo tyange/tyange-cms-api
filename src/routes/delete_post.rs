@@ -32,11 +32,11 @@ pub async fn delete_post(
                             data: Some(DeletePostResponse { post_id }),
                             message: Some(String::from("포스트가 삭제되었습니다.")),
                         })),
-                        Err(e) => {
-                            eprintln!("Error delete post: {}", e);
+                        Err(err) => {
+                            eprintln!("Error delete post: {}", err);
                             Err(Error::from_string(
-                                "Failed to delete post",
-                                poem::http::StatusCode::INTERNAL_SERVER_ERROR,
+                                err.to_string(),
+                                StatusCode::INTERNAL_SERVER_ERROR,
                             ))
                         }
                     }
@@ -48,7 +48,7 @@ pub async fn delete_post(
                 }
             }
             Err(err) => Err(Error::from_string(
-                err.to_string(),
+                format!("Error delete posts: {}", err),
                 StatusCode::INTERNAL_SERVER_ERROR,
             )),
         }

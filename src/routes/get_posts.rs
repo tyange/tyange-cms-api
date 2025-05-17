@@ -52,9 +52,9 @@ pub async fn get_posts(
             }))
         }
         Err(err) => {
-            eprintln!("Error fetching posts: {}", err);
+            ;
             Err(Error::from_string(
-                "Failed to fetch posts.",
+                format!("Error fetching posts: {}", err),
                 StatusCode::INTERNAL_SERVER_ERROR,
             ))
         }

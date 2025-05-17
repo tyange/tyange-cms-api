@@ -58,7 +58,7 @@ pub async fn upload_post(
             Err(err) => {
                 eprintln!("Error saving post: {}", err);
                 Err(Error::from_string(
-                    "Failed to save post",
+                    format!("Error upload posts: {}", err),
                     poem::http::StatusCode::INTERNAL_SERVER_ERROR,
                 ))
             }
