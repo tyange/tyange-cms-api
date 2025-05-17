@@ -16,6 +16,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Create .env file
+      run: |
+        echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" > .env
+        echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> .env
     - name: Build
       run: cargo build --release --verbose
     - name: Run tests
