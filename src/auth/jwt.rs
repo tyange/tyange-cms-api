@@ -78,7 +78,7 @@ impl Claims {
     }
 
     pub fn create_access_token(user_id: &str, secret: &[u8]) -> Result<String, Error> {
-        let claims = Self::new(user_id, "access", 15);
+        let claims = Self::new(user_id, "access", 600);
         claims.to_token(secret)
     }
 
