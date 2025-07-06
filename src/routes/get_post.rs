@@ -9,7 +9,7 @@ use poem::{
 use sqlx::{query_as, Sqlite};
 
 use crate::models::{Post, PostResponseDb};
-use crate::{AppState};
+use crate::AppState;
 
 #[handler]
 pub async fn get_post(
@@ -26,8 +26,6 @@ pub async fn get_post(
     .bind(&post_id)
     .fetch_optional(&data.db)
     .await;
-    
-    println!("쿼리 결과: {:?}", result);
 
     match result {
         Ok(Some(db_post)) => {
@@ -40,12 +38,10 @@ pub async fn get_post(
                 "해당 id에 해당하는 포스트가 없네요.",
                 StatusCode::NOT_FOUND,
             ))
-        },
-        Err(err) => {
-            Err(Error::from_string(
-                format!("Error fetching post: {}", err),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
         }
+        Err(err) => Err(Error::from_string(
+            format!("Error fetching post: {}", err),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )),
     }
 }

@@ -7,13 +7,15 @@ use dotenv::dotenv;
 use middlewares::auth_middleware::Auth;
 use std::{path::PathBuf, sync::Arc};
 
-use db::init_db;
-use poem::{delete, get, listener::TcpListener, middleware::Cors, post, put, EndpointExt, Route, Server};
-use routes::{login::login, get_posts::get_posts, get_post::get_post, upload_post::upload_post};
-use sqlx::{SqlitePool};
 use crate::models::AppState;
 use crate::routes::delete_post::delete_post;
 use crate::routes::update_post::update_post;
+use db::init_db;
+use poem::{
+    delete, get, listener::TcpListener, middleware::Cors, post, put, EndpointExt, Route, Server,
+};
+use routes::{get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post};
+use sqlx::SqlitePool;
 
 fn configure_routes() -> Route {
     Route::new()
@@ -47,13 +49,15 @@ async fn main() -> Result<(), std::io::Error> {
         upload_dir: PathBuf::from("./uploads"),
     });
 
-    let app = configure_routes().data(state).with(
+    let app = configure_routes().with(
         Cors::new()
+            .allow_origin("http://localhost:3001")
             .allow_origin("http://localhost:3000")
-            .allow_methods(vec!["GET", "POST"])
+            .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
             .allow_credentials(true)
-            .allow_headers(vec!["content-type"]),
-    );
+            .allow_headers(vec!["authorization", "content-type", "accept"]),
+    )
+        .data(state);
 
     Server::new(TcpListener::bind("0.0.0.0:8080"))
         .run(app)
