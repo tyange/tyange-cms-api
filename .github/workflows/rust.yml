@@ -37,9 +37,9 @@ jobs:
         run: cargo test --verbose
       - name: Stop service
         run: sudo systemctl stop tyange-cms-backend.service
-      - name: Copy files to service location
+      - name: Move files to service location
         run: |
-          cp target/release/tyange-cms-backend ${{ secrets.SERVICE_BINARY_PATH }}
-          cp .env ${{ secrets.SERVICE_ENV_PATH }}
+          mv target/release/tyange-cms-backend ${{ secrets.SERVICE_BINARY_PATH }}
+          mv .env ${{ secrets.SERVICE_BINARY_PATH }}
       - name: Start service
         run: sudo systemctl start tyange-cms-backend.service
