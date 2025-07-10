@@ -3,7 +3,7 @@ use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json, Path};
 use poem::{handler, Error, Request};
-use sqlx::{query};
+use sqlx::query;
 use std::sync::Arc;
 use tyange_cms_backend::auth::permission::permission;
 
@@ -41,12 +41,10 @@ pub async fn update_post(
                             }),
                             message: Some(String::from("포스트를 업데이트 했습니다.")),
                         })),
-                        Err(_) => {
-                            Err(Error::from_string(
-                                "Failed to update post.",
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                            ))
-                        }
+                        Err(_) => Err(Error::from_string(
+                            "Failed to update post.",
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                        )),
                     }
                 } else {
                     Err(Error::from_string(

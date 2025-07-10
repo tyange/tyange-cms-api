@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Sqlite};
+use std::path::PathBuf;
 
 pub struct AppState {
     pub db: Pool<Sqlite>,
@@ -11,7 +11,7 @@ pub struct AppState {
 pub struct CustomResponse<T> {
     pub status: bool,
     pub data: Option<T>,
-    pub message: Option<String>
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -29,9 +29,7 @@ impl From<PostResponseDb> for Post {
         let tags = if db.tags.is_empty() {
             Vec::new()
         } else {
-            db.tags.split(',')
-                .map(|s| s.trim().to_string())
-                .collect()
+            db.tags.split(',').map(|s| s.trim().to_string()).collect()
         };
 
         Self {
@@ -44,7 +42,6 @@ impl From<PostResponseDb> for Post {
         }
     }
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct UploadResponse {
@@ -94,7 +91,7 @@ pub struct PostResponse {
 
 #[derive(Debug, Serialize)]
 pub struct PostsResponse {
-    pub posts: Vec<Post>
+    pub posts: Vec<Post>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -108,5 +105,5 @@ pub struct UpdatePostRequest {
 
 #[derive(Debug, Serialize)]
 pub struct DeletePostResponse {
-    pub post_id: String
+    pub post_id: String,
 }

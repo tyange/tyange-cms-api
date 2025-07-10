@@ -49,14 +49,15 @@ async fn main() -> Result<(), std::io::Error> {
         upload_dir: PathBuf::from("./uploads"),
     });
 
-    let app = configure_routes().with(
-        Cors::new()
-            .allow_origin("http://localhost:3001")
-            .allow_origin("http://localhost:3000")
-            .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-            .allow_credentials(true)
-            .allow_headers(vec!["authorization", "content-type", "accept"]),
-    )
+    let app = configure_routes()
+        .with(
+            Cors::new()
+                .allow_origin("http://localhost:3001")
+                .allow_origin("http://localhost:3000")
+                .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+                .allow_credentials(true)
+                .allow_headers(vec!["authorization", "content-type", "accept"]),
+        )
         .data(state);
 
     Server::new(TcpListener::bind("0.0.0.0:8080"))

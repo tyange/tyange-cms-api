@@ -51,12 +51,9 @@ pub async fn get_posts(
                 message: None,
             }))
         }
-        Err(err) => {
-            ;
-            Err(Error::from_string(
-                format!("Error fetching posts: {}", err),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
-        }
+        Err(err) => Err(Error::from_string(
+            format!("Error fetching posts: {}", err),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )),
     }
 }
