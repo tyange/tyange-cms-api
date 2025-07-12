@@ -1,6 +1,6 @@
 use std::env;
 
-use poem::{http::StatusCode, Endpoint, Error, Middleware, Request, Response};
+use poem::{http::StatusCode, Endpoint, Error, Middleware, Request};
 use tyange_cms_backend::auth::jwt::Claims;
 
 pub struct Auth;

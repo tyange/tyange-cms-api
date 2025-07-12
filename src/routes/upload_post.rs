@@ -32,6 +32,7 @@ pub async fn upload_post(
         let decoded_token = Claims::from_token(&token, &secret_bytes)?;
 
         let user_id = decoded_token.claims.sub;
+
         let post_id = Uuid::new_v4().to_string();
 
         let result = query(

@@ -107,3 +107,8 @@ pub struct UpdatePostRequest {
 pub struct DeletePostResponse {
     pub post_id: String,
 }
+
+#[derive(Debug, Serialize)]
+pub struct UploadImageResponse {
+    pub image_path: String,
+}

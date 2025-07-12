@@ -2,6 +2,7 @@ mod db;
 mod middlewares;
 mod models;
 mod routes;
+mod utils;
 
 use dotenv::dotenv;
 use middlewares::auth_middleware::Auth;
@@ -10,6 +11,7 @@ use std::{path::PathBuf, sync::Arc};
 use crate::models::AppState;
 use crate::routes::delete_post::delete_post;
 use crate::routes::update_post::update_post;
+use crate::routes::upload_image::upload_image;
 use db::init_db;
 use poem::{
     delete, get, listener::TcpListener, middleware::Cors, post, put, EndpointExt, Route, Server,
@@ -24,6 +26,7 @@ fn configure_routes() -> Route {
         .at("/post/upload", post(upload_post).with(Auth))
         .at("/post/update/:post_id", put(update_post).with(Auth))
         .at("/post/delete/:post_id", delete(delete_post).with(Auth))
+        .at("/upload-image", post(upload_image).with(Auth))
         .at("/login", post(login))
 }
 

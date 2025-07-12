@@ -3,5 +3,7 @@
 .db
 .httpie
 .env
+.env.prod
 .idea
 .todo
+.uploads

@@ -1,4 +1,4 @@
-use crate::models::{CustomResponse, Post, PostResponse, PostResponseDb, PostsResponse};
+use crate::models::{CustomResponse, Post, PostResponseDb, PostsResponse};
 use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
