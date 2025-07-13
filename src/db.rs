@@ -22,6 +22,25 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
 
     sqlx::query(
         r#"
+        CREATE TABLE IF NOT EXISTS images (
+            image_id TEXT PRIMARY KEY,
+            post_id TEXT,
+            file_name TEXT NOT NULL,
+            origin_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            mime_type TEXT NOT NULL,
+            image_type TEXT NOT NULL,
+            uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts(post_id)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(InternalServerError)?;
+
+    sqlx::query(
+        r#"
         CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
             password TEXT NOT NULL,

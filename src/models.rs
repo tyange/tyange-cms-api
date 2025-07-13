@@ -112,3 +112,9 @@ pub struct DeletePostResponse {
 pub struct UploadImageResponse {
     pub image_path: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UploadImageQueryParmas {
+    pub post_id: Option<String>,
+    pub image_type: Option<String>,
+}
