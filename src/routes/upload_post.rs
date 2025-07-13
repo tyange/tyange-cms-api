@@ -33,15 +33,13 @@ pub async fn upload_post(
 
         let user_id = decoded_token.claims.sub;
 
-        let post_id = Uuid::new_v4().to_string();
-
         let result = query(
             r#"
         INSERT INTO posts (post_id, title, description, published_at, tags, content, writer_id)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         "#,
         )
-        .bind(&post_id)
+        .bind(&payload.post_id)
         .bind(&payload.title)
         .bind(&payload.description)
         .bind(&payload.published_at)
@@ -53,8 +51,10 @@ pub async fn upload_post(
 
         match result {
             Ok(_) => {
-                println!("Post saved successfully with ID: {}", post_id);
-                Ok(Json(UploadResponse { post_id }))
+                println!("Post saved successfully with ID: {}", &payload.post_id);
+                Ok(Json(UploadResponse {
+                    post_id: String::from(&payload.post_id),
+                }))
             }
             Err(err) => {
                 eprintln!("Error saving post: {}", err);
