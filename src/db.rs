@@ -6,12 +6,13 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
         r#"
         CREATE TABLE IF NOT EXISTS posts (
             post_id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL,
-            published_at DATETIME NOT NULL,
+            title TEXT,
+            description TEXT,
+            published_at DATETIME,
             tags TEXT,
-            content TEXT NOT NULL,
+            content TEXT,
             writer_id TEXT NOT NULL,
+            status TEXT NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         "#,

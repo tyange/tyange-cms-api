@@ -2,7 +2,7 @@ use std::env;
 use std::sync::Arc;
 
 use crate::{
-    models::{UploadPostRequest, UploadResponse},
+    models::{CustomResponse, UploadPostRequest, UploadResponse},
     AppState,
 };
 use poem::http::StatusCode;
@@ -20,7 +20,7 @@ pub async fn upload_post(
     req: &Request,
     Json(payload): Json<UploadPostRequest>,
     data: Data<&Arc<AppState>>,
-) -> Result<Json<UploadResponse>, Error> {
+) -> Result<Json<CustomResponse<UploadResponse>>, Error> {
     if let Some(token) = req.header("Authorization") {
         let secret = env::var("JWT_ACCESS_SECRET").map_err(|e| {
             Error::from_string(
@@ -33,27 +33,32 @@ pub async fn upload_post(
 
         let user_id = decoded_token.claims.sub;
 
+        let post_id = Uuid::new_v4().to_string();
+
         let result = query(
             r#"
-        INSERT INTO posts (post_id, title, description, published_at, tags, content, writer_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO posts (post_id, title, description, published_at, tags, content, writer_id, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         "#,
         )
-        .bind(&payload.post_id)
+        .bind(&post_id)
         .bind(&payload.title)
         .bind(&payload.description)
         .bind(&payload.published_at)
         .bind(&payload.tags)
         .bind(&payload.content)
         .bind(&user_id)
+        .bind(&payload.status)
         .execute(&data.db)
         .await;
 
         match result {
             Ok(_) => {
-                println!("Post saved successfully with ID: {}", &payload.post_id);
-                Ok(Json(UploadResponse {
-                    post_id: String::from(&payload.post_id),
+                println!("Post saved successfully with ID: {}", post_id);
+                Ok(Json(CustomResponse {
+                    status: true,
+                    data: Some(UploadResponse { post_id }),
+                    message: Some(String::from("포스트를 업로드 했습니다.")),
                 }))
             }
             Err(err) => {

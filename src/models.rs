@@ -50,12 +50,12 @@ pub struct UploadResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct UploadPostRequest {
-    pub post_id: String,
     pub title: String,
     pub description: String,
     pub published_at: String,
     pub tags: String,
     pub content: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
