@@ -6,7 +6,7 @@ mod utils;
 
 use dotenv::dotenv;
 use middlewares::auth_middleware::Auth;
-use std::{path::PathBuf, sync::Arc};
+use std::{env, path::PathBuf, sync::Arc};
 
 use crate::models::AppState;
 use crate::routes::delete_post::delete_post;
@@ -14,21 +14,11 @@ use crate::routes::update_post::update_post;
 use crate::routes::upload_image::upload_image;
 use db::init_db;
 use poem::{
-    delete, get, listener::TcpListener, middleware::Cors, post, put, EndpointExt, Route, Server,
+    delete, endpoint::StaticFilesEndpoint, get, listener::TcpListener, middleware::Cors, post, put,
+    EndpointExt, Route, Server,
 };
 use routes::{get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post};
 use sqlx::SqlitePool;
-
-fn configure_routes() -> Route {
-    Route::new()
-        .at("/posts", get(get_posts))
-        .at("/post/:post_id", get(get_post))
-        .at("/post/upload", post(upload_post).with(Auth))
-        .at("/post/update/:post_id", put(update_post).with(Auth))
-        .at("/post/delete/:post_id", delete(delete_post).with(Auth))
-        .at("/upload-image", post(upload_image).with(Auth))
-        .at("/login", post(login))
-}
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
@@ -51,6 +41,20 @@ async fn main() -> Result<(), std::io::Error> {
         db,
         upload_dir: PathBuf::from("./uploads"),
     });
+
+    fn configure_routes() -> Route {
+        let upload_base_path = env::var("UPLOAD_PATH").unwrap_or(String::from(".uploads/images"));
+
+        Route::new()
+            .at("/posts", get(get_posts))
+            .at("/post/:post_id", get(get_post))
+            .at("/post/upload", post(upload_post).with(Auth))
+            .at("/post/update/:post_id", put(update_post).with(Auth))
+            .at("/post/delete/:post_id", delete(delete_post).with(Auth))
+            .at("/upload-image", post(upload_image).with(Auth))
+            .at("/login", post(login))
+            .nest("/images", StaticFilesEndpoint::new(upload_base_path))
+    }
 
     let app = configure_routes()
         .with(
