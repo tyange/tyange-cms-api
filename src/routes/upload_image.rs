@@ -92,10 +92,12 @@ pub async fn upload_image(
 
                     println!("이미지 저장 완료: {}", file_path.display());
 
+                    let web_accessible_path = format!("/images/{}", file_name);
+
                     return Ok(Json(CustomResponse {
                         status: true,
                         data: Some(UploadImageResponse {
-                            image_path: file_path.to_string_lossy().to_string(),
+                            image_path: web_accessible_path,
                         }),
                         message: Some(String::from("이미지 업로드에 성공했습니다.")),
                     }));
