@@ -38,7 +38,7 @@ jobs:
         run: sudo systemctl stop tyange-cms-backend.service
       - name: Prepare upload directory
         run: |
-          mkdir -p ${{ secrets.UPLOAD_PATH }}
+          sudo mkdir -p ${{ secrets.UPLOAD_PATH }}
           sudo chown -R $USER:$USER ${{ secrets.UPLOAD_BASE_PATH }}
           sudo chmod -R 755 ${{ secrets.UPLOAD_BASE_PATH }}/uploads
       - name: Move files to service location
