@@ -36,11 +36,6 @@ jobs:
         run: cargo test --verbose
       - name: Stop service
         run: sudo systemctl stop tyange-cms-backend.service
-      - name: Prepare upload directory
-        run: |
-          sudo mkdir -p ${{ secrets.UPLOAD_PATH }}
-          sudo chown -R $USER:$USER ${{ secrets.UPLOAD_BASE_PATH }}
-          sudo chmod -R 755 ${{ secrets.UPLOAD_BASE_PATH }}/uploads
       - name: Move files to service location
         run: |
           mv target/release/tyange-cms-backend ${{ secrets.SERVICE_BINARY_PATH }}
