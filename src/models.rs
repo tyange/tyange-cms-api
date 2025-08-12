@@ -20,6 +20,7 @@ pub struct Post {
     pub published_at: String,
     pub tags: Vec<String>,
     pub content: String,
+    pub status: String,
 }
 
 impl From<PostResponseDb> for Post {
@@ -37,6 +38,7 @@ impl From<PostResponseDb> for Post {
             published_at: db.published_at,
             tags,
             content: db.content,
+            status: db.status,
         }
     }
 }
@@ -91,6 +93,7 @@ pub struct PostResponseDb {
     pub published_at: String,
     pub tags: String,
     pub content: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize)]

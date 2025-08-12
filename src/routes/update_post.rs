@@ -20,9 +20,9 @@ pub async fn update_post(
                 if is_ok_permission {
                     let result = query(
                         r"
-                            UPDATE posts SET title = $1, description = $2, published_at = $3, tags = $4, content = $5 WHERE post_id = $6
+                            UPDATE posts SET title = $1, description = $2, published_at = $3, tags = $4, content = $5, status = $6 WHERE post_id = $7
                         ",
-                    ).bind(&payload.title).bind(&payload.description).bind(&payload.published_at).bind(&payload.tags).bind(&payload.content).bind(&post_id).execute(&data.db).await;
+                    ).bind(&payload.title).bind(&payload.description).bind(&payload.published_at).bind(&payload.tags).bind(&payload.content).bind(String::from("published")).bind(&post_id).execute(&data.db).await;
 
                     match result {
                         Ok(_) => Ok(Json(CustomResponse {
@@ -38,6 +38,7 @@ pub async fn update_post(
                                     .map(|s| s.trim().to_string())
                                     .collect(),
                                 content: payload.content,
+                                status: String::from("published"),
                             }),
                             message: Some(String::from("포스트를 업데이트 했습니다.")),
                         })),

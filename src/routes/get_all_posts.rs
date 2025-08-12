@@ -43,6 +43,7 @@ pub async fn get_all_posts(
                                 published_at: db_post.get("published_at"),
                                 tags: db_post.get("tags"),
                                 content: db_post.get("content"),
+                                status: db_post.get("status"),
                             };
                             Post::from(post_response_db)
                         })
