@@ -60,16 +60,14 @@ async fn main() -> Result<(), std::io::Error> {
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
     }
 
-    let app = configure_routes()
-        .with(
-            Cors::new()
-                .allow_origin("http://localhost:3001")
-                .allow_origin("http://localhost:3000")
-                .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-                .allow_credentials(true)
-                .allow_headers(vec!["authorization", "content-type", "accept"]),
-        )
-        .data(state);
+    let app = configure_routes().data(state).with(
+        Cors::new()
+            .allow_origin("http://localhost:3001")
+            .allow_origin("http://localhost:3000")
+            .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allow_credentials(true)
+            .allow_headers(vec!["authorization", "content-type", "accept"]),
+    );
 
     Server::new(TcpListener::bind("0.0.0.0:8080"))
         .run(app)
