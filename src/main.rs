@@ -14,11 +14,16 @@ use crate::routes::update_post::update_post;
 use crate::routes::upload_image::upload_image;
 use db::init_db;
 use poem::{
-    delete, endpoint::StaticFilesEndpoint, get, listener::TcpListener, middleware::Cors, post, put,
-    EndpointExt, Route, Server,
+    delete, endpoint::StaticFilesEndpoint, get, handler, http::StatusCode, listener::TcpListener,
+    middleware::Cors, options, post, put, EndpointExt, Response, Route, Server,
 };
 use routes::{get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post};
 use sqlx::SqlitePool;
+
+#[handler]
+async fn options_handler() -> Response {
+    Response::builder().status(StatusCode::OK).finish()
+}
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
@@ -58,6 +63,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/upload-image", post(upload_image).with(Auth))
             .at("/login", post(login))
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
+            .at("/*path", options(options_handler))
     }
 
     let app = configure_routes().data(state).with(
