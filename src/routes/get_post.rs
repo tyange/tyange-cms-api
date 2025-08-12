@@ -18,7 +18,7 @@ pub async fn get_post(
 ) -> Result<Json<Post>, Error> {
     let result = query_as::<Sqlite, PostResponseDb>(
         r#"
-        SELECT post_id, title, description, published_at, tags, content
+        SELECT post_id, title, description, published_at, tags, content, status
         FROM posts
         WHERE post_id = ?
         "#,
