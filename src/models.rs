@@ -118,6 +118,7 @@ pub struct UpdatePostRequest {
     pub published_at: String,
     pub tags: String,
     pub content: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize)]
