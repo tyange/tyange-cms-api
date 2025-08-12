@@ -13,7 +13,6 @@ pub async fn add_user(
     Json(payload): Json<AddUserRequest>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<CustomResponse<()>>, Error> {
-    // 패스워드 해싱
     let hashed_password = hash(&payload.password, DEFAULT_COST).map_err(|e| {
         Error::from_string(
             format!("Password hashing failed: {}", e),
