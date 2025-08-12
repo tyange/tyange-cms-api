@@ -6,7 +6,7 @@ mod utils;
 
 use dotenv::dotenv;
 use middlewares::auth_middleware::Auth;
-use std::{env, path::PathBuf, sync::Arc};
+use std::{env, fs, path::PathBuf, sync::Arc};
 
 use crate::models::AppState;
 use crate::routes::delete_post::delete_post;
@@ -24,7 +24,11 @@ use sqlx::SqlitePool;
 async fn main() -> Result<(), std::io::Error> {
     dotenv().ok();
 
-    let db_path = "./.db/database.db";
+    let db_path = env::var("DATABASE_PATH").unwrap_or_else(|_| "./data/database.db".to_string());
+    if let Some(parent) = std::path::Path::new(&db_path).parent() {
+        fs::create_dir_all(parent)?;
+    }
+
     let db_url = format!("sqlite:{}?mode=rwc", db_path);
     println!("Database URL: {}", db_url);
 

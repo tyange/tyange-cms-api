@@ -1,6 +1,6 @@
 .vscode
 /target
-.db
+/data
 .httpie
 .env
 .env.prod
