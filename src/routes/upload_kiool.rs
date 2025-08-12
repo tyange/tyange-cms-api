@@ -1,13 +1,8 @@
-use std::env;
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
-use crate::{
-    models::{CustomResponse, UploadPostRequest, UploadPostResponse},
-    AppState,
-};
-use poem::http::StatusCode;
 use poem::{
     handler,
+    http::StatusCode,
     web::{Data, Json},
     Error, Request,
 };
@@ -15,12 +10,14 @@ use sqlx::query;
 use tyange_cms_backend::auth::jwt::Claims;
 use uuid::Uuid;
 
+use crate::models::{AppState, CustomResponse, UploadKioolRequest, UploadKioolResponse};
+
 #[handler]
-pub async fn upload_post(
+pub async fn upload_kiool(
     req: &Request,
-    Json(payload): Json<UploadPostRequest>,
+    Json(payload): Json<UploadKioolRequest>,
     data: Data<&Arc<AppState>>,
-) -> Result<Json<CustomResponse<UploadPostResponse>>, Error> {
+) -> Result<Json<CustomResponse<UploadKioolResponse>>, Error> {
     if let Some(token) = req.header("Authorization") {
         let secret = env::var("JWT_ACCESS_SECRET").map_err(|e| {
             Error::from_string(
@@ -33,15 +30,15 @@ pub async fn upload_post(
 
         let user_id = decoded_token.claims.sub;
 
-        let post_id = Uuid::new_v4().to_string();
+        let kiool_id = Uuid::new_v4().to_string();
 
         let result = query(
             r#"
-        INSERT INTO posts (post_id, title, description, published_at, tags, content, writer_id, status)
+        INSERT INTO kiools (kiool_id, title, description, published_at, tags, content, writer_id, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         "#,
         )
-        .bind(&post_id)
+        .bind(&kiool_id)
         .bind(&payload.title)
         .bind(&payload.description)
         .bind(&payload.published_at)
@@ -54,17 +51,17 @@ pub async fn upload_post(
 
         match result {
             Ok(_) => {
-                println!("Post saved successfully with ID: {}", post_id);
+                println!("Kiool saved successfully with ID: {}", kiool_id);
                 Ok(Json(CustomResponse {
                     status: true,
-                    data: Some(UploadPostResponse { post_id }),
+                    data: Some(UploadKioolResponse { kiool_id }),
                     message: Some(String::from("포스트를 업로드 했습니다.")),
                 }))
             }
             Err(err) => {
-                eprintln!("Error saving post: {}", err);
+                eprintln!("Error saving kiool: {}", err);
                 Err(Error::from_string(
-                    format!("Error upload posts: {}", err),
+                    format!("Error upload kiools: {}", err),
                     poem::http::StatusCode::INTERNAL_SERVER_ERROR,
                 ))
             }

@@ -44,12 +44,27 @@ impl From<PostResponseDb> for Post {
 }
 
 #[derive(Debug, Serialize)]
-pub struct UploadResponse {
+pub struct UploadPostResponse {
     pub post_id: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct UploadPostRequest {
+    pub title: String,
+    pub description: String,
+    pub published_at: String,
+    pub tags: String,
+    pub content: String,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UploadKioolResponse {
+    pub kiool_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UploadKioolRequest {
     pub title: String,
     pub description: String,
     pub published_at: String,
