@@ -20,7 +20,7 @@ pub async fn get_posts(
 
     match result {
         Ok(db_posts) => {
-            if (db_posts.len() == 0) {
+            if db_posts.len() == 0 {
                 return Ok(Json(CustomResponse {
                     status: true,
                     data: Some(PostsResponse {

@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Sqlite};
-use std::path::PathBuf;
 
 pub struct AppState {
     pub db: Pool<Sqlite>,
-    pub upload_dir: PathBuf,
 }
 
 #[derive(Debug, Serialize)]

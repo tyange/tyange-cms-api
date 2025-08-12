@@ -6,7 +6,7 @@ mod utils;
 
 use dotenv::dotenv;
 use middlewares::auth_middleware::Auth;
-use std::{env, fs, path::PathBuf, sync::Arc};
+use std::{env, fs, sync::Arc};
 
 use crate::models::AppState;
 use crate::routes::delete_post::delete_post;
@@ -46,10 +46,7 @@ async fn main() -> Result<(), std::io::Error> {
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
-    let state = Arc::new(AppState {
-        db,
-        upload_dir: PathBuf::from("./uploads"),
-    });
+    let state = Arc::new(AppState { db });
 
     fn configure_routes() -> Route {
         let upload_base_path = env::var("UPLOAD_PATH").unwrap_or(String::from(".uploads/images"));
