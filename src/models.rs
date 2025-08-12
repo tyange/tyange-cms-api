@@ -132,3 +132,10 @@ pub struct UploadImageQueryParmas {
     pub post_id: Option<String>,
     pub image_type: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AddUserRequest {
+    pub user_id: String,
+    pub password: String,
+    pub user_role: String,
+}

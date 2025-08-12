@@ -1,3 +1,4 @@
+pub mod add_user;
 pub mod delete_post;
 pub mod get_post;
 pub mod get_posts;
