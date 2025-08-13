@@ -27,7 +27,8 @@ jobs:
         run: |
           echo JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} > .env
           echo JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} >> .env
-          echo UPLOAD_PATH=${{ secrets.UPLOAD_PATH }} >> .env
+          echo UPLOAD_PATH=${{ vars.UPLOAD_PATH }} >> .env
+          echo DATABASE_PATH=${{ vars.DATABASE_PATH }} >> .env
       - name: Build
         if: ${{ !inputs.deploy_only }}
         run: cargo build --release --verbose
@@ -38,7 +39,7 @@ jobs:
         run: sudo systemctl stop tyange-cms-backend.service
       - name: Move files to service location
         run: |
-          mv target/release/tyange-cms-backend ${{ secrets.SERVICE_BINARY_PATH }}
-          mv .env ${{ secrets.SERVICE_BINARY_PATH }}
+          mv target/release/tyange-cms-backend ${{ vars.SERVICE_BINARY_PATH }}
+          mv .env ${{ vars.SERVICE_BINARY_PATH }}
       - name: Start service
         run: sudo systemctl start tyange-cms-backend.service
