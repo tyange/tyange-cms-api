@@ -7,6 +7,8 @@ use tyange_cms_backend::auth::jwt::Claims;
 fn test_validate_token() {
     dotenv().ok();
 
+    println!("test");
+
     let secret = env::var("JWT_ACCESS_SECRET").unwrap();
     let claims = Claims::new("test", "access", 15);
     let access_token = claims.to_token(&secret.as_bytes()).unwrap();
