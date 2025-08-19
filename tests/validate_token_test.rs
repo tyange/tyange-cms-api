@@ -8,6 +8,7 @@ fn test_validate_token() {
     dotenv().ok();
 
     println!("test");
+    println!("test1");
 
     let secret = env::var("JWT_ACCESS_SECRET").unwrap();
     let claims = Claims::new("test", "access", 15);
