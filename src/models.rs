@@ -30,7 +30,6 @@ impl From<PostResponseDb> for Post {
         } else {
             db.tags.split(',').map(|s| s.trim().to_string()).collect()
         };
-
         Self {
             post_id: db.post_id,
             title: db.title,
@@ -142,4 +141,40 @@ pub struct AddUserRequest {
     pub user_id: String,
     pub password: String,
     pub user_role: String,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct Section {
+    pub section_id: i32,
+    pub section_type: String,
+    pub content_data: String,
+    pub order_index: i32,
+    pub is_active: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateSectionRequest {
+    pub section_type: String,
+    pub content_data: String,
+    pub order_index: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateSectionRequest {
+    pub section_type: Option<String>,
+    pub content_data: Option<String>,
+    pub order_index: Option<i32>,
+    pub is_active: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateSectionResponse {
+    pub section_id: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeleteSectionResponse {
+    pub section_id: i32,
 }

@@ -72,5 +72,22 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     .await
     .map_err(InternalServerError)?;
 
+    sqlx::query(
+        r#"
+        CREATE TABLE sections (
+            section_id INTEGER PRIMARY KEY,
+            section_type TEXT NOT NULL,
+            content_data TEXT NOT NULL,
+            order_index INTEGER NOT NULL,
+            is_active BOOLEAN DEFAULT true,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(InternalServerError)?;
+
     Ok(())
 }
