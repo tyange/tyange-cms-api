@@ -74,7 +74,7 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
 
     sqlx::query(
         r#"
-        CREATE TABLE sections (
+        CREATE TABLE IF NOT EXISTS sections (
             section_id INTEGER PRIMARY KEY,
             section_type TEXT NOT NULL,
             content_data TEXT NOT NULL,

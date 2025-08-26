@@ -8,13 +8,13 @@ use poem::{
 };
 use sqlx::{query_as, Sqlite};
 
-use crate::models::{AppState, Section};
+use crate::models::{AppState, Section, SectionResponse};
 
 #[handler]
 pub async fn get_section(
     Path(section_id): Path<String>,
     data: Data<&Arc<AppState>>,
-) -> Result<Json<Section>, Error> {
+) -> Result<Json<SectionResponse>, Error> {
     let result = query_as::<Sqlite, Section>(
         r#"
         SELECT section_id, section_type, content_data, order_index, is_active, created_at, updated_at
@@ -28,7 +28,24 @@ pub async fn get_section(
 
     match result {
         Ok(Some(db_section)) => {
-            let section_response = Section::from(db_section);
+            let content_json: serde_json::Value = serde_json::from_str(&db_section.content_data)
+                .map_err(|e| {
+                    Error::from_string(
+                        format!("JSON 파싱 에러: {}", e),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                })?;
+
+            let section_response = SectionResponse {
+                section_id: db_section.section_id,
+                section_type: db_section.section_type,
+                content_data: content_json, // JSON 객체로 변환
+                order_index: db_section.order_index,
+                is_active: db_section.is_active,
+                created_at: db_section.created_at,
+                updated_at: db_section.updated_at,
+            };
+
             Ok(Json(section_response))
         }
         Ok(None) => {
