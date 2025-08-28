@@ -8,13 +8,13 @@ use poem::{
 };
 use sqlx::{query_as, Sqlite};
 
-use crate::models::{AppState, Section, SectionResponse};
+use crate::models::{AppState, CustomResponse, Section, SectionResponse};
 
 #[handler]
 pub async fn get_section(
     Path(section_id): Path<String>,
     data: Data<&Arc<AppState>>,
-) -> Result<Json<SectionResponse>, Error> {
+) -> Result<Json<CustomResponse<SectionResponse>>, Error> {
     let result = query_as::<Sqlite, Section>(
         r#"
         SELECT section_id, section_type, content_data, order_index, is_active, created_at, updated_at
@@ -46,7 +46,11 @@ pub async fn get_section(
                 updated_at: db_section.updated_at,
             };
 
-            Ok(Json(section_response))
+            Ok(Json(CustomResponse {
+                status: true,
+                data: Some(section_response),
+                message: None,
+            }))
         }
         Ok(None) => {
             println!("sectino data를 찾을 수 없음: {}", section_id);
