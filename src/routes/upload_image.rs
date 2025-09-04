@@ -8,7 +8,7 @@ use poem::{
 };
 use sqlx::query;
 use tokio::fs;
-use tyange_cms_backend::auth::jwt::Claims;
+use tyange_cms_api::auth::jwt::Claims;
 use uuid::Uuid;
 
 use crate::models::{AppState, CustomResponse, UploadImageQueryParmas, UploadImageResponse};

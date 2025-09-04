@@ -5,7 +5,7 @@ use poem::web::{Data, Json, Path};
 use poem::{handler, Error, Request};
 use sqlx::query;
 use std::sync::Arc;
-use tyange_cms_backend::auth::permission::permission;
+use tyange_cms_api::auth::permission::permission;
 
 #[handler]
 pub async fn update_post(

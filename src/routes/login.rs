@@ -9,7 +9,7 @@ use poem::{
 };
 
 use sqlx::Row;
-use tyange_cms_backend::auth::jwt::Claims;
+use tyange_cms_api::auth::jwt::Claims;
 
 use crate::{
     models::{LoginRequest, LoginResponse},

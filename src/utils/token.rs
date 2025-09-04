@@ -1,7 +1,7 @@
 use std::env;
 
 use poem::{http::StatusCode, Error};
-use tyange_cms_backend::auth::jwt::Claims;
+use tyange_cms_api::auth::jwt::Claims;
 
 pub fn get_user_id_from_token(token: &str) -> Result<String, Error> {
     let secret = env::var("JWT_ACCESS_SECRET").map_err(|e| {

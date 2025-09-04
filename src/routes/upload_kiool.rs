@@ -7,7 +7,7 @@ use poem::{
     Error, Request,
 };
 use sqlx::query;
-use tyange_cms_backend::auth::jwt::Claims;
+use tyange_cms_api::auth::jwt::Claims;
 use uuid::Uuid;
 
 use crate::models::{AppState, CustomResponse, UploadKioolRequest, UploadKioolResponse};

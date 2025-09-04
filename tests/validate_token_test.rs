@@ -1,7 +1,7 @@
 use std::env;
 
 use dotenv::dotenv;
-use tyange_cms_backend::auth::jwt::Claims;
+use tyange_cms_api::auth::jwt::Claims;
 
 #[test]
 fn test_validate_token() {

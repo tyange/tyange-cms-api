@@ -2076,7 +2076,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tyange-cms-backend"
+name = "tyange-cms-api"
 version = "0.1.0"
 dependencies = [
  "bcrypt",
