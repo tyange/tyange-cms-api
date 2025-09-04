@@ -27,7 +27,7 @@ pub async fn add_user(
         "#,
     )
     .bind(&payload.user_id)
-    .bind(&hashed_password) // 해싱된 패스워드 사용
+    .bind(&hashed_password)
     .bind(&payload.user_role)
     .execute(&data.db)
     .await;
