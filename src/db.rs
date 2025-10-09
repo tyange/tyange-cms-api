@@ -55,25 +55,6 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
 
     sqlx::query(
         r#"
-        CREATE TABLE IF NOT EXISTS kiools (
-            kiool_id TEXT PRIMARY KEY,
-            title TEXT,
-            description TEXT,
-            published_at DATETIME,
-            tags TEXT,
-            content TEXT,
-            writer_id TEXT NOT NULL,
-            status TEXT NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .map_err(InternalServerError)?;
-
-    sqlx::query(
-        r#"
         CREATE TABLE IF NOT EXISTS sections (
             section_id INTEGER PRIMARY KEY,
             section_type TEXT NOT NULL,

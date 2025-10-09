@@ -7,5 +7,4 @@ pub mod get_section;
 pub mod login;
 pub mod update_post;
 pub mod upload_image;
-pub mod upload_kiool;
 pub mod upload_post;

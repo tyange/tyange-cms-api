@@ -58,21 +58,6 @@ pub struct UploadPostRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct UploadKioolResponse {
-    pub kiool_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UploadKioolRequest {
-    pub title: String,
-    pub description: String,
-    pub published_at: String,
-    pub tags: String,
-    pub content: String,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct LoginRequest {
     pub user_id: String,
     pub password: String,
@@ -93,16 +78,6 @@ pub struct PostResponseDb {
     pub tags: String,
     pub content: String,
     pub status: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct PostResponse {
-    pub post_id: String,
-    pub title: String,
-    pub description: String,
-    pub published_at: String,
-    pub tags: Vec<String>,
-    pub content: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -163,29 +138,4 @@ pub struct SectionResponse {
     pub is_active: bool,
     pub created_at: String,
     pub updated_at: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CreateSectionRequest {
-    pub section_type: String,
-    pub content_data: String,
-    pub order_index: i32,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UpdateSectionRequest {
-    pub section_type: Option<String>,
-    pub content_data: Option<String>,
-    pub order_index: Option<i32>,
-    pub is_active: Option<bool>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct CreateSectionResponse {
-    pub section_id: i32,
-}
-
-#[derive(Debug, Serialize)]
-pub struct DeleteSectionResponse {
-    pub section_id: i32,
 }
