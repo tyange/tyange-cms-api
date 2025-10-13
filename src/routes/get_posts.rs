@@ -12,7 +12,7 @@ pub async fn get_posts(
 ) -> Result<Json<CustomResponse<PostsResponse>>, Error> {
     let result = query(
         r#"
-        SELECT * FROM posts WHERE status != 'draft'
+        SELECT * FROM posts WHERE status != 'draft' ORDER BY published_at DESC
         "#,
     )
     .fetch_all(&data.db)
