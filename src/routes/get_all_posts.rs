@@ -12,7 +12,7 @@ pub async fn get_all_posts(
 ) -> Result<Json<CustomResponse<PostsResponse>>, Error> {
     let result = query(
         r#"
-        SELECT * FROM posts
+        SELECT * FROM posts ORDER BY published_at DESC
         "#,
     )
     .fetch_all(&data.db)

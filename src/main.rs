@@ -1,4 +1,4 @@
-˝mod db;
+mod db;
 mod middlewares;
 mod models;
 mod routes;
