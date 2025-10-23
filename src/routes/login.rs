@@ -110,9 +110,11 @@ pub async fn login(
             .content_type("application/json")
             .body(Body::from(json_body)))
     } else {
-        Err(poem::Error::from_string(
-            "로그인 실패: 잘못된 비밀번호",
-            StatusCode::UNAUTHORIZED,
-        ))
+        Ok(Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .content_type("application/json")
+            .body(Body::from_string(String::from(
+                "로그인 실패: 잘못된 비밀번호",
+            ))))
     }
 }

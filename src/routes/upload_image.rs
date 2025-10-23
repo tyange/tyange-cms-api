@@ -54,11 +54,17 @@ pub async fn upload_image(
                     fs::create_dir_all(file_path.parent().unwrap())
                         .await
                         .map_err(|e| {
-                            Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
+                            Error::from_string(
+                                format!("디렉토리 생성 실패 ({}): {}", file_path.display(), e),
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                            )
                         })?;
 
                     fs::write(&file_path, &file_bytes).await.map_err(|e| {
-                        Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
+                        Error::from_string(
+                            format!("파일 생성 실패: {}", e),
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                        )
                     })?;
 
                     let image_id = Uuid::new_v4().to_string();
