@@ -70,5 +70,18 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     .await
     .map_err(InternalServerError)?;
 
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS portfolio (
+            portfolio_id INTEGER PRIMARY KEY,
+            content TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(InternalServerError)?;
+
     Ok(())
 }

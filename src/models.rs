@@ -118,24 +118,15 @@ pub struct AddUserRequest {
     pub user_role: String,
 }
 
-#[derive(Debug, Serialize, FromRow)]
-pub struct Section {
-    pub section_id: i32,
-    pub section_type: String,
-    pub content_data: String,
-    pub order_index: i32,
-    pub is_active: bool,
-    pub created_at: String,
+#[derive(Debug, Serialize)]
+pub struct Portfolio {
+    pub portfolio_id: i32,
+    pub content: String,
     pub updated_at: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct SectionResponse {
-    pub section_id: i32,
-    pub section_type: String,
-    pub content_data: serde_json::Value,
-    pub order_index: i32,
-    pub is_active: bool,
-    pub created_at: String,
+#[derive(Debug, Serialize, FromRow)]
+pub struct PortfolioResponse {
+    pub content: String,
     pub updated_at: String,
 }
