@@ -60,7 +60,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/post/update/:post_id", put(update_post).with(Auth))
             .at("/post/delete/:post_id", delete(delete_post).with(Auth))
             .at("/portfolio", get(get_portfolio))
-            .at("/portfolio/update", put(update_portfolio))
+            .at("/portfolio/update", put(update_portfolio).with(Auth))
             .at("/upload-image", post(upload_image).with(Auth))
             .at("/login", post(login))
             .at("/admin/add-user", post(add_user).with(Auth))
