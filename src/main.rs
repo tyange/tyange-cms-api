@@ -72,6 +72,7 @@ async fn main() -> Result<(), std::io::Error> {
             .allow_origin("http://localhost:3001")
             .allow_origin("http://localhost:3000")
             .allow_origin("https://blog.tyange.xyz")
+            .allow_origin("https://blog.tyange.com")
             .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
             .allow_credentials(true)
             .allow_headers(vec!["authorization", "content-type", "accept"]),
