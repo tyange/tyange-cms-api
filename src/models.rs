@@ -130,3 +130,8 @@ pub struct PortfolioResponse {
     pub content: String,
     pub updated_at: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdatePortfolioRequest {
+    pub content: String,
+}

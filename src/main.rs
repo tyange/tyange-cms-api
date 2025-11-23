@@ -10,6 +10,7 @@ use std::{env, fs, sync::Arc};
 use crate::routes::delete_post::delete_post;
 use crate::routes::get_all_posts::get_all_posts;
 use crate::routes::get_portfolio::get_portfolio;
+use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
 use crate::routes::upload_image::upload_image;
 use crate::{models::AppState, routes::add_user::add_user};
@@ -59,6 +60,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/post/update/:post_id", put(update_post).with(Auth))
             .at("/post/delete/:post_id", delete(delete_post).with(Auth))
             .at("/portfolio", get(get_portfolio))
+            .at("/portfolio/update", put(update_portfolio))
             .at("/upload-image", post(upload_image).with(Auth))
             .at("/login", post(login))
             .at("/admin/add-user", post(add_user).with(Auth))
