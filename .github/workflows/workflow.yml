@@ -56,7 +56,6 @@ jobs:
           target: ${{ secrets.SERVICE_BINARY_PATH }}
           strip_components: 0
           debug: true
-          rm: true
 
       - name: Start service
         uses: appleboy/ssh-action@v1.0.3
