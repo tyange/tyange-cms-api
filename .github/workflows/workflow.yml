@@ -28,6 +28,7 @@ jobs:
           echo JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} > .env
           echo JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} >> .env
           echo UPLOAD_PATH=${{ secrets.UPLOAD_PATH }} >> .env
+          echo DATABASE_PATH=${{ secrets.DATA_PATH }}  >> .env
 
       - name: Build
         if: ${{ !inputs.deploy_only }}
