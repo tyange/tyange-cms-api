@@ -27,8 +27,8 @@ jobs:
         run: |
           echo JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} > .env
           echo JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} >> .env
-          echo UPLOAD_PATH=${{ secrets.UPLOAD_PATH }} >> .env
-          echo DATABASE_PATH=${{ secrets.DATA_PATH }}  >> .env
+          echo UPLOAD_PATH=${{ vars.UPLOAD_PATH }} >> .env
+          echo DATABASE_PATH=${{ vars.DATABASE_PATH }}  >> .env
 
       - name: Build
         if: ${{ !inputs.deploy_only }}
@@ -53,7 +53,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "tyange-cms-api,.env"
+          source: "target/release/tyange-cms-api,.env"
           target: "/home/ubuntu/dev/deploy/tyange-cms-api"
           strip_components: 0
           debug: true
