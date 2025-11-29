@@ -28,7 +28,7 @@ jobs:
           echo JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} > .env
           echo JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} >> .env
           echo UPLOAD_PATH=${{ vars.UPLOAD_PATH }} >> .env
-          echo DATABASE_PATH=${{ vars.DATABASE_PATH }}  >> .env
+          echo DATABASE_PATH=${{ vars.DATABASE_PATH }} >> .env
 
       - name: Build
         if: ${{ !inputs.deploy_only }}
@@ -47,15 +47,23 @@ jobs:
           script: |
             sudo systemctl stop tyange-cms-api.service
 
+      - name: Prepare deployment files
+        if: ${{ !inputs.deploy_only }}
+        run: |
+          mkdir -p deploy
+          cp target/release/tyange-cms-api deploy/
+          cp .env deploy/
+
       - name: Deploy files via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "target/release/tyange-cms-api,.env"
+          source: "deploy/*"
           target: "/home/ubuntu/dev/deploy/tyange-cms-api"
-          strip_components: 0
+          strip_components: 1
+          overwrite: true
           debug: true
 
       - name: Start service
