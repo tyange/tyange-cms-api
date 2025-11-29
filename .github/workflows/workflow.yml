@@ -21,6 +21,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: deploy on tyange-home-server
     steps:
       - uses: actions/checkout@v4
       - name: Create .env file
