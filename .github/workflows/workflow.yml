@@ -1,0 +1,68 @@
+name: workflow
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: "Skip tests"
+        required: false
+        default: false
+        type: boolean
+      deploy_only:
+        description: "Deploy only (skip build)"
+        required: false
+        default: false
+        type: boolean
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create .env file
+        run: |
+          echo JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} > .env
+          echo JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} >> .env
+          echo UPLOAD_PATH=${{ secrets.UPLOAD_PATH }} >> .env
+
+      - name: Build
+        if: ${{ !inputs.deploy_only }}
+        run: cargo build --release --verbose
+
+      - name: Run tests
+        if: ${{ !inputs.skip_tests && !inputs.deploy_only }}
+        run: cargo test --verbose
+
+      - name: Stop service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo systemctl stop tyange-cms-backend.service
+
+      - name: Deploy files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "tyange-cms-backend,.env"
+          target: ${{ secrets.SERVICE_BINARY_PATH }}
+          strip_components: 0
+          debug: true
+          rm: true
+
+      - name: Start service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo systemctl start tyange-cms-backend.service

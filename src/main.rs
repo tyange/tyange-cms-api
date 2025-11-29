@@ -23,6 +23,11 @@ use routes::{get_post::get_post, get_posts::get_posts, login::login, upload_post
 use sqlx::SqlitePool;
 
 #[handler]
+fn return_str() -> &'static str {
+    "hello"
+}
+
+#[handler]
 async fn options_handler() -> Response {
     Response::builder().status(StatusCode::OK).finish()
 }
@@ -54,6 +59,7 @@ async fn main() -> Result<(), std::io::Error> {
         let upload_base_path = env::var("UPLOAD_PATH").unwrap_or(String::from(".uploads/images"));
 
         Route::new()
+            .at("/health-check", get(return_str))
             .at("/posts", get(get_posts))
             .at("/post/:post_id", get(get_post))
             .at("/post/upload", post(upload_post).with(Auth))
