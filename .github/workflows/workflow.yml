@@ -44,7 +44,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sudo systemctl stop tyange-cms-backend.service
+            sudo systemctl stop tyange-cms-api.service
 
       - name: Deploy files via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -52,7 +52,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "tyange-cms-backend,.env"
+          source: "tyange-cms-api,.env"
           target: ${{ secrets.SERVICE_BINARY_PATH }}
           strip_components: 0
           debug: true
@@ -65,4 +65,4 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sudo systemctl start tyange-cms-backend.service
+            sudo systemctl start tyange-cms-api.service
