@@ -62,7 +62,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "deploy/*"
-          target: "/home/ubuntu/dev/deploy/tyange-cms-api"
+          target: ${{ vars.SERVICE_PATH }}
           strip_components: 1
           overwrite: true
           debug: true
