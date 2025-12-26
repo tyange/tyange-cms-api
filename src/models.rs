@@ -135,3 +135,8 @@ pub struct PortfolioResponse {
 pub struct UpdatePortfolioRequest {
     pub content: String,
 }
+
+#[derive(Deserialize)]
+pub struct SearchParams {
+    pub tag: Option<String>
+}
