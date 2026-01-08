@@ -3,7 +3,7 @@ use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json, Query};
 use poem::{handler, Error};
-use sqlx::{QueryBuilder, Row, query};
+use sqlx::{QueryBuilder, Row};
 use std::sync::Arc;
 
 #[handler]
