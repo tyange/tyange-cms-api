@@ -52,7 +52,7 @@ pub struct UploadPostRequest {
     pub title: String,
     pub description: String,
     pub published_at: String,
-    pub tags: String,
+    pub tags: Vec<String>,
     pub content: String,
     pub status: String,
 }
@@ -139,4 +139,15 @@ pub struct UpdatePortfolioRequest {
 #[derive(Deserialize)]
 pub struct SearchParams {
     pub tag: Option<String>
+}
+
+#[derive(Debug, Serialize)]
+pub struct CountWithTag {
+    pub tag: String,
+    pub count: i64
+}
+
+#[derive(Debug, Serialize)]
+pub struct TagsResponse {
+    pub tags: Vec<CountWithTag>,
 }

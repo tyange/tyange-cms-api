@@ -10,3 +10,4 @@ pub mod update_post;
 pub mod upload_image;
 pub mod upload_post;
 pub mod get_posts_with_search_params;
+pub mod get_count_with_tags;

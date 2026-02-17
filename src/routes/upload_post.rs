@@ -32,43 +32,85 @@ pub async fn upload_post(
         let decoded_token = Claims::from_token(&token, &secret_bytes)?;
 
         let user_id = decoded_token.claims.sub;
-
         let post_id = Uuid::new_v4().to_string();
 
-        let result = query(
+        let mut tx = data.db.begin().await.map_err(|e| {
+            Error::from_string(
+                format!("트랜잭션 시작 실패: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?;
+
+        query(
             r#"
-        INSERT INTO posts (post_id, title, description, published_at, tags, content, writer_id, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        "#,
+            INSERT INTO posts (post_id, title, description, published_at, content, writer_id, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            "#,
         )
         .bind(&post_id)
         .bind(&payload.title)
         .bind(&payload.description)
         .bind(&payload.published_at)
-        .bind(&payload.tags)
         .bind(&payload.content)
         .bind(&user_id)
         .bind(&payload.status)
-        .execute(&data.db)
-        .await;
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| {
+            Error::from_string(
+                format!("포스트 저장 실패: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?;
 
-        match result {
-            Ok(_) => {
-                println!("Post saved successfully with ID: {}", post_id);
-                Ok(Json(CustomResponse {
-                    status: true,
-                    data: Some(UploadPostResponse { post_id }),
-                    message: Some(String::from("포스트를 업로드 했습니다.")),
-                }))
+        for tag in &payload.tags {
+            let tag_name = tag.trim();
+            if tag_name.is_empty() {
+                continue;
             }
-            Err(err) => {
-                eprintln!("Error saving post: {}", err);
-                Err(Error::from_string(
-                    format!("Error upload posts: {}", err),
-                    poem::http::StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
+
+            query("INSERT OR IGNORE INTO tags (name) VALUES (?)")
+                .bind(tag_name)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| {
+                    Error::from_string(
+                        format!("태그 저장 실패: {}", e),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                })?;
+
+            query(
+                r#"
+                INSERT INTO post_tags (post_id, tag_id)
+                SELECT ?, tag_id FROM tags WHERE name = ?
+                "#,
+            )
+            .bind(&post_id)
+            .bind(tag_name)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+                Error::from_string(
+                    format!("포스트-태그 관계 저장 실패: {}", e),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?;
         }
+
+        tx.commit().await.map_err(|e| {
+            Error::from_string(
+                format!("트랜잭션 커밋 실패: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?;
+
+        println!("Post saved successfully with ID: {}", post_id);
+        Ok(Json(CustomResponse {
+            status: true,
+            data: Some(UploadPostResponse { post_id }),
+            message: Some(String::from("포스트를 업로드 했습니다.")),
+        }))
     } else {
         Err(Error::from_string(
             "토큰을 받지 못했어요.",
