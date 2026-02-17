@@ -1,4 +1,4 @@
-use crate::models::{CustomResponse, Post, PostResponseDb, PostsResponse, SearchParams};
+use crate::models::{CustomResponse, Post, PostsResponse, SearchParams};
 use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json, Query};
@@ -11,20 +11,36 @@ pub async fn get_posts_with_search_params(
     Query(search_params): Query<SearchParams>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<CustomResponse<PostsResponse>>, Error> {
-    let mut builder = QueryBuilder::new("SELECT * FROM posts WHERE status != 'draft'");
+    let mut builder = QueryBuilder::new(
+        r#"
+        SELECT p.post_id, p.title, p.description, p.published_at,
+               p.content, p.status,
+               IFNULL(GROUP_CONCAT(t2.name, ','), '') AS tags
+        FROM posts p
+        LEFT JOIN post_tags pt2 ON p.post_id = pt2.post_id
+        LEFT JOIN tags t2 ON pt2.tag_id = t2.tag_id
+        WHERE p.status != 'draft'
+        "#,
+    );
 
     if let Some(tag) = search_params.tag {
-        builder.push(" AND tags LIKE ");
-        builder.push_bind(format!("%{}%", tag));
+        builder.push(
+            " AND p.post_id IN (
+                SELECT pt.post_id FROM post_tags pt
+                JOIN tags t ON pt.tag_id = t.tag_id
+                WHERE t.name = ",
+        );
+        builder.push_bind(tag);
+        builder.push(")");
     }
 
-    builder.push(" ORDER BY published_at DESC, ROWID DESC");
+    builder.push(" GROUP BY p.post_id ORDER BY p.published_at DESC, ROWID DESC");
 
     let result = builder.build().fetch_all(&data.db).await;
 
     match result {
         Ok(db_posts) => {
-            if db_posts.len() == 0 {
+            if db_posts.is_empty() {
                 return Ok(Json(CustomResponse {
                     status: true,
                     data: Some(PostsResponse {
@@ -39,17 +55,21 @@ pub async fn get_posts_with_search_params(
                 data: Some(PostsResponse {
                     posts: db_posts
                         .iter()
-                        .map(|db_post| {
-                            let post_response_db = PostResponseDb {
-                                post_id: db_post.get("post_id"),
-                                title: db_post.get("title"),
-                                description: db_post.get("description"),
-                                published_at: db_post.get("published_at"),
-                                tags: db_post.get("tags"),
-                                content: db_post.get("content"),
-                                status: db_post.get("status"),
-                            };
-                            Post::from(post_response_db)
+                        .map(|db_post| Post {
+                            post_id: db_post.get("post_id"),
+                            title: db_post.get("title"),
+                            description: db_post.get("description"),
+                            published_at: db_post.get("published_at"),
+                            tags: {
+                                let tags_str: String = db_post.get("tags");
+                                if tags_str.is_empty() {
+                                    Vec::new()
+                                } else {
+                                    tags_str.split(',').map(|s| s.trim().to_string()).collect()
+                                }
+                            },
+                            content: db_post.get("content"),
+                            status: db_post.get("status"),
                         })
                         .collect(),
                 }),

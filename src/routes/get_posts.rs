@@ -1,4 +1,4 @@
-use crate::models::{CustomResponse, Post, PostResponseDb, PostsResponse};
+use crate::models::{CustomResponse, Post, PostsResponse};
 use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
@@ -12,7 +12,14 @@ pub async fn get_posts(
 ) -> Result<Json<CustomResponse<PostsResponse>>, Error> {
     let result = query(
         r#"
-        SELECT * FROM posts WHERE status != 'draft' ORDER BY published_at DESC, ROWID DESC
+        SELECT p.post_id, p.title, p.description, p.published_at,
+        p.content, p.status,
+        IFNULL(GROUP_CONCAT(t.name, ','), '') AS tags
+        FROM posts p
+        LEFT JOIN post_tags pt ON p.post_id = pt.post_id
+        LEFT JOIN tags t ON pt.tag_id = t.tag_id
+        GROUP BY p.post_id
+        ORDER BY p.published_at DESC;
         "#,
     )
     .fetch_all(&data.db)
@@ -35,17 +42,21 @@ pub async fn get_posts(
                 data: Some(PostsResponse {
                     posts: db_posts
                         .iter()
-                        .map(|db_post| {
-                            let post_response_db = PostResponseDb {
-                                post_id: db_post.get("post_id"),
-                                title: db_post.get("title"),
-                                description: db_post.get("description"),
-                                published_at: db_post.get("published_at"),
-                                tags: db_post.get("tags"),
-                                content: db_post.get("content"),
-                                status: db_post.get("status"),
-                            };
-                            Post::from(post_response_db)
+                        .map(|db_post| Post {
+                            post_id: db_post.get("post_id"),
+                            title: db_post.get("title"),
+                            description: db_post.get("description"),
+                            published_at: db_post.get("published_at"),
+                            tags: {
+                                let tags_str: String = db_post.get("tags");
+                                if tags_str.is_empty() {
+                                    Vec::new()
+                                } else {
+                                    tags_str.split(',').map(|s| s.trim().to_string()).collect()
+                                }
+                            },
+                            content: db_post.get("content"),
+                            status: db_post.get("status"),
                         })
                         .collect(),
                 }),

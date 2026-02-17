@@ -23,25 +23,6 @@ pub struct Post {
     pub status: String,
 }
 
-impl From<PostResponseDb> for Post {
-    fn from(db: PostResponseDb) -> Self {
-        let tags = if db.tags.is_empty() {
-            Vec::new()
-        } else {
-            db.tags.split(',').map(|s| s.trim().to_string()).collect()
-        };
-        Self {
-            post_id: db.post_id,
-            title: db.title,
-            description: db.description,
-            published_at: db.published_at,
-            tags,
-            content: db.content,
-            status: db.status,
-        }
-    }
-}
-
 #[derive(Debug, Serialize)]
 pub struct UploadPostResponse {
     pub post_id: String,
@@ -75,7 +56,6 @@ pub struct PostResponseDb {
     pub title: String,
     pub description: String,
     pub published_at: String,
-    pub tags: String,
     pub content: String,
     pub status: String,
 }
