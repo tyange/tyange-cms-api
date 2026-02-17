@@ -70,7 +70,7 @@ pub struct UpdatePostRequest {
     pub title: String,
     pub description: String,
     pub published_at: String,
-    pub tags: String,
+    pub tags: Vec<String>,
     pub content: String,
     pub status: String,
 }
