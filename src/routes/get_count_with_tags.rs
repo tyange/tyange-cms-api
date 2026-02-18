@@ -6,14 +6,14 @@ use poem::{
     web::{Data, Json},
     Error,
 };
-use sqlx::{Row, query};
+use sqlx::{query, Row};
 
-use crate::models::{AppState, CountWithTag, CustomResponse, TagsResponse};
+use crate::models::{AppState, CountWithTag, CustomResponse};
 
 #[handler]
 pub async fn get_count_with_tags(
     data: Data<&Arc<AppState>>,
-) -> Result<Json<CustomResponse<TagsResponse>>, Error> {
+) -> Result<Json<CustomResponse<Vec<CountWithTag>>>, Error> {
     let result = query(
         r#"
         SELECT t.name AS tag, COUNT(*) AS count
@@ -31,17 +31,15 @@ pub async fn get_count_with_tags(
             if db_tags.len() == 0 {
                 return Ok(Json(CustomResponse {
                     status: true,
-                    data: Some(TagsResponse {
-                        tags: Vec::<CountWithTag>::new(),
-                    }),
+                    data: Some(Vec::<CountWithTag>::new()),
                     message: Some(String::from("조회된 태그가 하나도 없어요.")),
                 }));
             }
 
             Ok(Json(CustomResponse {
                 status: true,
-                data: Some(TagsResponse {
-                    tags: db_tags
+                data: Some(
+                    db_tags
                         .iter()
                         .map(|db_tag| {
                             let tag_response_db = CountWithTag {
@@ -51,7 +49,7 @@ pub async fn get_count_with_tags(
                             CountWithTag::from(tag_response_db)
                         })
                         .collect(),
-                }),
+                ),
                 message: None,
             }))
         }

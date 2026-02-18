@@ -127,8 +127,3 @@ pub struct CountWithTag {
     pub tag: String,
     pub count: i64,
 }
-
-#[derive(Debug, Serialize)]
-pub struct TagsResponse {
-    pub tags: Vec<CountWithTag>,
-}
