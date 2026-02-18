@@ -118,13 +118,14 @@ pub struct UpdatePortfolioRequest {
 
 #[derive(Deserialize)]
 pub struct SearchParams {
-    pub tag: Option<String>
+    pub include: Option<String>,
+    pub exclude: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct CountWithTag {
     pub tag: String,
-    pub count: i64
+    pub count: i64,
 }
 
 #[derive(Debug, Serialize)]

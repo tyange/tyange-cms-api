@@ -7,7 +7,7 @@ use sqlx::{QueryBuilder, Row};
 use std::sync::Arc;
 
 #[handler]
-pub async fn get_posts_with_search_params(
+pub async fn get_posts_with_tags(
     Query(search_params): Query<SearchParams>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<CustomResponse<PostsResponse>>, Error> {
@@ -23,7 +23,7 @@ pub async fn get_posts_with_search_params(
         "#,
     );
 
-    if let Some(tag) = search_params.tag {
+    if let Some(tag) = search_params.include {
         builder.push(
             " AND p.post_id IN (
                 SELECT pt.post_id FROM post_tags pt
@@ -34,7 +34,18 @@ pub async fn get_posts_with_search_params(
         builder.push(")");
     }
 
-    builder.push(" GROUP BY p.post_id ORDER BY p.published_at DESC, ROWID DESC");
+    if let Some(exclude_tag) = search_params.exclude {
+        builder.push(
+            " AND p.post_id NOT IN (
+            SELECT pt.post_id FROM post_tags pt
+            JOIN tags t ON pt.tag_id = t.tag_id
+            WHERE t.name = ",
+        );
+        builder.push_bind(exclude_tag);
+        builder.push(")");
+    }
+
+    builder.push(" GROUP BY p.post_id ORDER BY p.published_at DESC, p.created_at DESC");
 
     let result = builder.build().fetch_all(&data.db).await;
 
