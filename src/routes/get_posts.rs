@@ -18,8 +18,9 @@ pub async fn get_posts(
         FROM posts p
         LEFT JOIN post_tags pt ON p.post_id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.tag_id
+        WHERE p.status != 'draft'
         GROUP BY p.post_id
-        ORDER BY p.published_at DESC;
+        ORDER BY p.published_at DESC, p.created_at DESC
         "#,
     )
     .fetch_all(&data.db)

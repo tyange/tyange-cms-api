@@ -13,13 +13,13 @@ pub async fn get_all_posts(
     let result = query(
         r#"
         SELECT p.post_id, p.title, p.description, p.published_at,
-               p.content, p.status,
-               IFNULL(GROUP_CONCAT(t.name, ','), '') AS tags
+        p.content, p.status,
+        IFNULL(GROUP_CONCAT(t.name, ','), '') AS tags
         FROM posts p
         LEFT JOIN post_tags pt ON p.post_id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.tag_id
         GROUP BY p.post_id
-        ORDER BY p.published_at DESC, ROWID DESC
+        ORDER BY p.published_at DESC, p.created_at DESC
         "#,
     )
     .fetch_all(&data.db)
