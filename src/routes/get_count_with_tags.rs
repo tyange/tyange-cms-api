@@ -1,30 +1,35 @@
 use std::sync::Arc;
 
 use poem::{
-    handler,
-    http::StatusCode,
-    web::{Data, Json},
-    Error,
+    Error, handler, http::StatusCode, web::{Data, Json, Query}
 };
-use sqlx::{query, Row};
+use sqlx::{QueryBuilder, Row};
 
-use crate::models::{AppState, CountWithTag, CustomResponse};
+use crate::models::{AppState, CountWithTag, CustomResponse, SearchParamsWithTags};
 
 #[handler]
 pub async fn get_count_with_tags(
+    Query(search_params): Query<SearchParamsWithTags>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<CustomResponse<Vec<CountWithTag>>>, Error> {
-    let result = query(
+    let mut builder = QueryBuilder::new(
         r#"
         SELECT t.name AS tag, COUNT(*) AS count
         FROM post_tags pt
         JOIN tags t ON pt.tag_id = t.tag_id
-        GROUP BY t.name
-        ORDER BY count DESC
-        "#,
-    )
-    .fetch_all(&data.db)
-    .await;
+        "#
+    );
+
+    if let Some(category) = search_params.category {
+        builder.push(
+            "WHERE t.category = ",
+        );
+        builder.push_bind(category);
+    };
+
+    builder.push(" GROUP BY t.name ORDER BY count DESC");
+
+    let result = builder.build().fetch_all(&data.db).await;
 
     match result {
         Ok(db_tags) => {

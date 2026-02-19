@@ -117,9 +117,14 @@ pub struct UpdatePortfolioRequest {
 }
 
 #[derive(Deserialize)]
-pub struct SearchParams {
+pub struct SearchParamsWithPosts {
     pub include: Option<String>,
     pub exclude: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct SearchParamsWithTags {
+    pub category: Option<String>
 }
 
 #[derive(Debug, Serialize)]
