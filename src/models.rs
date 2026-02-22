@@ -29,11 +29,17 @@ pub struct UploadPostResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct Tag {
+    pub category: String,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct UploadPostRequest {
     pub title: String,
     pub description: String,
     pub published_at: String,
-    pub tags: Vec<String>,
+    pub tags: Vec<Tag>,
     pub content: String,
     pub status: String,
 }

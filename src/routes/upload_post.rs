@@ -64,13 +64,14 @@ pub async fn upload_post(
         })?;
 
         for tag in &payload.tags {
-            let tag_name = tag.trim();
+            let tag_name = &tag.name;
             if tag_name.is_empty() {
                 continue;
             }
 
-            query("INSERT OR IGNORE INTO tags (name) VALUES (?)")
+            query("INSERT OR IGNORE INTO tags (name, category) VALUES (?, ?)")
                 .bind(tag_name)
+                .bind(&tag.category)
                 .execute(&mut *tx)
                 .await
                 .map_err(|e| {
