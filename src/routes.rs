@@ -11,3 +11,4 @@ pub mod upload_image;
 pub mod upload_post;
 pub mod get_posts_with_tags;
 pub mod get_count_with_tags;
+pub mod get_tags_with_category;

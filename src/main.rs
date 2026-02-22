@@ -12,6 +12,7 @@ use crate::routes::get_all_posts::get_all_posts;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
+use crate::routes::get_tags_with_category::get_tags_with_category;
 use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
 use crate::routes::upload_image::upload_image;
@@ -69,6 +70,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/post/update/:post_id", put(update_post).with(Auth))
             .at("/post/delete/:post_id", delete(delete_post).with(Auth))
             .at("/tags", get(get_count_with_tags))
+            .at("/tags-with-category", get(get_tags_with_category))
             .at("/portfolio", get(get_portfolio))
             .at("/portfolio/update", put(update_portfolio).with(Auth))
             .at("/upload-image", post(upload_image).with(Auth))
