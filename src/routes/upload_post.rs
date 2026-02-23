@@ -64,7 +64,7 @@ pub async fn upload_post(
         })?;
 
         for tag in &payload.tags {
-            let tag_name = &tag.name;
+            let tag_name = &tag.tag;
             if tag_name.is_empty() {
                 continue;
             }

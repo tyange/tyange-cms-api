@@ -59,7 +59,7 @@ pub async fn update_post(
                         })?;
 
                     for tag in &payload.tags {
-                        let tag_name = &tag.name;
+                        let tag_name = &tag.tag;
                         if tag_name.is_empty() {
                             continue;
                         }
@@ -112,7 +112,7 @@ pub async fn update_post(
                                 .tags
                                 .iter()
                                 .map(|tag| TagWithCategory {
-                                    tag: String::from(&tag.name),
+                                    tag: String::from(&tag.tag),
                                     category: String::from(&tag.category),
                                 })
                                 .collect(),

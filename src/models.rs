@@ -30,8 +30,8 @@ pub struct UploadPostResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct Tag {
+    pub tag: String,
     pub category: String,
-    pub name: String,
 }
 
 #[derive(Debug, Deserialize)]
