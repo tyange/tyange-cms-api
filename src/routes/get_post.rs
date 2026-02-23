@@ -8,7 +8,7 @@ use poem::{
 };
 use sqlx::{query, query_as, Row, Sqlite};
 
-use crate::models::{Post, PostResponseDb};
+use crate::models::{Post, PostResponseDb, TagWithCategory};
 use crate::AppState;
 
 #[handler]
@@ -29,7 +29,7 @@ pub async fn get_post(
 
     let tags = query(
         r#"
-        SELECT t.name
+        SELECT t.name, t.category
         FROM post_tags pt
         JOIN tags t ON pt.tag_id = t.tag_id
         WHERE pt.post_id = ?;
@@ -47,12 +47,15 @@ pub async fn get_post(
                 description: db_post.description,
                 published_at: db_post.published_at,
                 tags: tags
-                .unwrap_or(Vec::new())
-                .iter()
-                .map(|row| row.get("name"))
-                .collect(),
+                    .unwrap_or(Vec::new())
+                    .iter()
+                    .map(|row| TagWithCategory {
+                        tag: row.get("name"),
+                        category: row.get("category"),
+                    })
+                    .collect(),
                 content: db_post.content,
-                status: db_post.status
+                status: db_post.status,
             };
             Ok(Json(post_response))
         }

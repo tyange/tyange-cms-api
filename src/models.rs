@@ -18,7 +18,7 @@ pub struct Post {
     pub title: String,
     pub description: String,
     pub published_at: String,
-    pub tags: Vec<String>,
+    pub tags: Vec<TagWithCategory>,
     pub content: String,
     pub status: String,
 }
@@ -64,6 +64,7 @@ pub struct PostResponseDb {
     pub published_at: String,
     pub content: String,
     pub status: String,
+    pub tags: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -71,12 +72,12 @@ pub struct PostsResponse {
     pub posts: Vec<Post>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UpdatePostRequest {
     pub title: String,
     pub description: String,
     pub published_at: String,
-    pub tags: Vec<String>,
+    pub tags: Vec<Tag>,
     pub content: String,
     pub status: String,
 }
@@ -130,7 +131,7 @@ pub struct SearchParamsWithPosts {
 
 #[derive(Deserialize)]
 pub struct SearchParamsWithTags {
-    pub category: Option<String>
+    pub category: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -143,4 +144,10 @@ pub struct CountWithTag {
 pub struct TagsWithCategory {
     pub category: String,
     pub tags: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TagWithCategory {
+    pub tag: String,
+    pub category: String,
 }

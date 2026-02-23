@@ -1,5 +1,6 @@
 use crate::models::{CustomResponse, Post, PostsResponse};
 use crate::AppState;
+use crate::utils::parse_tags;
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
 use poem::{handler, Error};
@@ -14,7 +15,7 @@ pub async fn get_all_posts(
         r#"
         SELECT p.post_id, p.title, p.description, p.published_at,
         p.content, p.status,
-        IFNULL(GROUP_CONCAT(t.name, ','), '') AS tags
+        IFNULL(GROUP_CONCAT(t.category || '::' || t.name, ','), '') AS tags
         FROM posts p
         LEFT JOIN post_tags pt ON p.post_id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.tag_id
@@ -47,17 +48,7 @@ pub async fn get_all_posts(
                             title: db_post.get("title"),
                             description: db_post.get("description"),
                             published_at: db_post.get("published_at"),
-                            tags: {
-                                let tags_str: String = db_post.get("tags");
-                                if tags_str.is_empty() {
-                                    Vec::new()
-                                } else {
-                                    tags_str
-                                        .split(',')
-                                        .map(|s| s.trim().to_string())
-                                        .collect()
-                                }
-                            },
+                            tags: parse_tags(db_post.get("tags")),
                             content: db_post.get("content"),
                             status: db_post.get("status"),
                         })

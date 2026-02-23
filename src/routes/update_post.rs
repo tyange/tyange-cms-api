@@ -1,4 +1,4 @@
-use crate::models::{CustomResponse, Post, UpdatePostRequest};
+use crate::models::{CustomResponse, Post, TagWithCategory, UpdatePostRequest};
 use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json, Path};
@@ -59,13 +59,14 @@ pub async fn update_post(
                         })?;
 
                     for tag in &payload.tags {
-                        let tag_name = tag.trim();
+                        let tag_name = &tag.name;
                         if tag_name.is_empty() {
                             continue;
                         }
 
-                        query("INSERT OR IGNORE INTO tags (name) VALUES (?)")
+                        query("INSERT OR IGNORE INTO tags (name, category) VALUES (?, ?)")
                             .bind(tag_name)
+                            .bind(&tag.category)
                             .execute(&mut *tx)
                             .await
                             .map_err(|e| {
@@ -110,7 +111,10 @@ pub async fn update_post(
                             tags: payload
                                 .tags
                                 .iter()
-                                .map(|s| s.trim().to_string())
+                                .map(|tag| TagWithCategory {
+                                    tag: String::from(&tag.name),
+                                    category: String::from(&tag.category),
+                                })
                                 .collect(),
                             content: payload.content,
                             status: payload.status,

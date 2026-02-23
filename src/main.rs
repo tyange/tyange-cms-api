@@ -2,6 +2,7 @@ mod db;
 mod middlewares;
 mod models;
 mod routes;
+mod utils;
 
 use dotenv::dotenv;
 use middlewares::auth_middleware::Auth;
