@@ -33,7 +33,7 @@ pub async fn get_tags_with_category(
             let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
             for row in &db_tags {
                 let category: String = row.get("category");
-                let name: String = row.get("name");
+                let name: String = row.get("tag");
                 map.entry(category).or_insert_with(Vec::new).push(name);
             }
 

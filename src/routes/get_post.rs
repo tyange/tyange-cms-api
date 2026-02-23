@@ -50,7 +50,7 @@ pub async fn get_post(
                     .unwrap_or(Vec::new())
                     .iter()
                     .map(|row| TagWithCategory {
-                        tag: row.get("name"),
+                        tag: row.get("tag"),
                         category: row.get("category"),
                     })
                     .collect(),
