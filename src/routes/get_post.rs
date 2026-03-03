@@ -10,7 +10,7 @@ use sqlx::{query_as, Sqlite};
 
 use crate::AppState;
 use crate::{
-    models::{PostItem, PostResponseDb},
+    models::{Post, PostResponseDb},
     utils::parse_tags,
 };
 
@@ -18,10 +18,11 @@ use crate::{
 pub async fn get_post(
     Path(post_id): Path<String>,
     data: Data<&Arc<AppState>>,
-) -> Result<Json<PostItem>, Error> {
+) -> Result<Json<Post>, Error> {
     let result = query_as::<Sqlite, PostResponseDb>(
         r#"
-        SELECT p.post_id, p.title, p.description, p.published_at, p.status,
+        SELECT p.post_id, p.title, p.description, p.published_at,
+        p.content, p.status,
         IFNULL(GROUP_CONCAT(t.category || '::' || t.name, ','), '') AS tags
         FROM posts p
         LEFT JOIN post_tags pt ON p.post_id = pt.post_id
@@ -36,12 +37,13 @@ pub async fn get_post(
 
     match result {
         Ok(Some(db_post)) => {
-            let post_response = PostItem {
+            let post_response = Post {
                 post_id: db_post.post_id,
                 title: db_post.title,
                 description: db_post.description,
                 published_at: db_post.published_at,
                 tags: parse_tags(&db_post.tags),
+                content: db_post.content,
                 status: db_post.status,
             };
             Ok(Json(post_response))
