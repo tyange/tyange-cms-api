@@ -89,7 +89,6 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
               record_id INTEGER PRIMARY KEY AUTOINCREMENT,
               amount INTEGER NOT NULL,
               merchant TEXT,
-              category TEXT,
               transacted_at DATETIME NOT NULL,
               week_key TEXT NOT NULL,
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP
