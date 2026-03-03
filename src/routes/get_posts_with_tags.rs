@@ -1,4 +1,4 @@
-use crate::models::{CustomResponse, PostItem, PostsResponse, SearchParamsWithPosts};
+use crate::models::{CustomResponse, PostItem, PostsResponse, SearchPostsWithTag};
 use crate::AppState;
 use crate::utils::parse_tags;
 use poem::http::StatusCode;
@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 #[handler]
 pub async fn get_posts_with_tags(
-    Query(search_params): Query<SearchParamsWithPosts>,
+    Query(search_params): Query<SearchPostsWithTag>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<CustomResponse<PostsResponse>>, Error> {
     let mut builder = QueryBuilder::new(
