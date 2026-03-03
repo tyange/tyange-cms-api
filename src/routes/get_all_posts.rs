@@ -1,4 +1,4 @@
-use crate::models::{CustomResponse, Post, PostsResponse};
+use crate::models::{CustomResponse, PostItem, PostsResponse};
 use crate::AppState;
 use crate::utils::parse_tags;
 use poem::http::StatusCode;
@@ -13,8 +13,7 @@ pub async fn get_all_posts(
 ) -> Result<Json<CustomResponse<PostsResponse>>, Error> {
     let result = query(
         r#"
-        SELECT p.post_id, p.title, p.description, p.published_at,
-        p.content, p.status,
+        SELECT p.post_id, p.title, p.description, p.published_at, p.status,
         IFNULL(GROUP_CONCAT(t.category || '::' || t.name, ','), '') AS tags
         FROM posts p
         LEFT JOIN post_tags pt ON p.post_id = pt.post_id
@@ -32,7 +31,7 @@ pub async fn get_all_posts(
                 return Ok(Json(CustomResponse {
                     status: true,
                     data: Some(PostsResponse {
-                        posts: Vec::<Post>::new(),
+                        posts: Vec::<PostItem>::new(),
                     }),
                     message: Some(String::from("포스트가 하나도 없네요.")),
                 }));
@@ -43,13 +42,12 @@ pub async fn get_all_posts(
                 data: Some(PostsResponse {
                     posts: db_posts
                         .iter()
-                        .map(|db_post| Post {
+                        .map(|db_post| PostItem {
                             post_id: db_post.get("post_id"),
                             title: db_post.get("title"),
                             description: db_post.get("description"),
                             published_at: db_post.get("published_at"),
                             tags: parse_tags(db_post.get("tags")),
-                            content: db_post.get("content"),
                             status: db_post.get("status"),
                         })
                         .collect(),

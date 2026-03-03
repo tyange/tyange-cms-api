@@ -1,4 +1,4 @@
-use crate::models::{CustomResponse, Post, PostResponseDb, PostsResponse};
+use crate::models::{CustomResponse, PostItem, PostResponseDb, PostsResponse};
 use crate::utils::parse_tags;
 use crate::AppState;
 use poem::http::StatusCode;
@@ -13,8 +13,7 @@ pub async fn get_posts(
 ) -> Result<Json<CustomResponse<PostsResponse>>, Error> {
     let db_posts = query_as::<_, PostResponseDb>(
         r#"
-        SELECT p.post_id, p.title, p.description, p.published_at,
-        p.content, p.status,
+        SELECT p.post_id, p.title, p.description, p.published_at, p.status,
         IFNULL(GROUP_CONCAT(t.category || '::' || t.name, ','), '') AS tags
         FROM posts p
         LEFT JOIN post_tags pt ON p.post_id = pt.post_id
@@ -43,12 +42,11 @@ pub async fn get_posts(
 
     let posts = db_posts
         .into_iter()
-        .map(|db_post| Post {
+        .map(|db_post| PostItem {
             post_id: db_post.post_id,
             title: db_post.title,
             description: db_post.description,
             published_at: db_post.published_at,
-            content: db_post.content,
             status: db_post.status,
             tags: parse_tags(&db_post.tags),
         })

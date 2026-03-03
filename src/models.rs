@@ -24,6 +24,16 @@ pub struct Post {
 }
 
 #[derive(Debug, Serialize)]
+pub struct PostItem {
+    pub post_id: String,
+    pub title: String,
+    pub description: String,
+    pub published_at: String,
+    pub tags: Vec<TagWithCategory>,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct UploadPostResponse {
     pub post_id: String,
 }
@@ -69,7 +79,7 @@ pub struct PostResponseDb {
 
 #[derive(Debug, Serialize)]
 pub struct PostsResponse {
-    pub posts: Vec<Post>,
+    pub posts: Vec<PostItem>,
 }
 
 #[derive(Debug, Deserialize)]
