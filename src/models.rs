@@ -166,3 +166,11 @@ pub struct TagWithCategory {
 pub struct SearchPostsWithWriter {
     pub writer_id: Option<String>,
 }
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+pub struct WeeklyConfigRequest {
+    pub weekly_limit: i32,
+    pub alert_threshold: f64,
+    pub started_at: String 
+}
