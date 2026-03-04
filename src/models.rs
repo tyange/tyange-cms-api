@@ -179,3 +179,19 @@ pub struct WeeklyConfigResponse {
     pub weekly_limit: u32,
     pub alert_threshold: f64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct CreateSpendingRequest {
+    pub amount: i64,
+    pub merchant: Option<String>,
+    pub transacted_at: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateSpendingResponse {
+    pub record_id: i64,
+    pub weekly_total: i64,
+    pub weekly_limit: i64,
+    pub remaining: i64,
+    pub alert: bool,
+}

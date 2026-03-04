@@ -9,6 +9,7 @@ use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
 
 use crate::routes::delete_post::delete_post;
+use crate::routes::create_spending::create_spending;
 use crate::routes::get_all_posts::get_all_posts;
 use crate::routes::get_weekly_config::get_weekly_config;
 use crate::routes::get_count_with_tags::get_count_with_tags;
@@ -84,6 +85,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
             .at("/budget/set", post(set_budget).with(Auth))
             .at("/budget/update/:config_id", put(update_budget).with(Auth))
+            .at("/budget/spending", post(create_spending))
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
             .at("/*path", options(options_handler))
     }
