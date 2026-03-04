@@ -53,12 +53,9 @@ async fn build_weekly_summary(
     let budget = query_as::<_, ActiveBudget>(
         "SELECT weekly_limit, alert_threshold
          FROM budget_config
-         WHERE started_at <= ?
-           AND (ended_at IS NULL OR ended_at >= ?)
-         ORDER BY started_at DESC
+         WHERE week_key = ?
          LIMIT 1",
     )
-    .bind(week_key)
     .bind(week_key)
     .fetch_optional(&data.db)
     .await

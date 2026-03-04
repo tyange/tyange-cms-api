@@ -103,10 +103,9 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
         r#"
           CREATE TABLE IF NOT EXISTS budget_config (
               config_id INTEGER PRIMARY KEY AUTOINCREMENT,
-              weekly_limit INTEGER NOT NULL DEFAULT 600000,
+              week_key TEXT NOT NULL UNIQUE,
+              weekly_limit INTEGER NOT NULL DEFAULT 500000,
               alert_threshold REAL NOT NULL DEFAULT 0.85,
-              started_at TEXT NOT NULL,
-              ended_at TEXT,
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
           "#,
