@@ -8,14 +8,17 @@ use dotenv::dotenv;
 use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
 
-use crate::routes::delete_post::delete_post;
 use crate::routes::create_spending::create_spending;
+use crate::routes::delete_post::delete_post;
+use crate::routes::delete_spending::delete_spending;
 use crate::routes::get_all_posts::get_all_posts;
 use crate::routes::get_weekly_config::get_weekly_config;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
+use crate::routes::get_spending::get_spending;
 use crate::routes::get_tags_with_category::get_tags_with_category;
+use crate::routes::get_weekly_summary::{get_weekly_summary, get_weekly_summary_by_key};
 use crate::routes::set_budget::set_budget;
 use crate::routes::update_budget::update_budget;
 use crate::routes::update_portfolio::update_portfolio;
@@ -67,6 +70,7 @@ async fn main() -> Result<(), std::io::Error> {
         let upload_base_path = env::var("UPLOAD_PATH").unwrap_or(String::from(".uploads/images"));
 
         Route::new()
+            .at("/health", get(return_str))
             .at("/health-check", get(return_str))
             .at("/posts", get(get_posts))
             .at("/posts/search-with-tags", get(get_posts_with_tags))
@@ -85,7 +89,10 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
             .at("/budget/set", post(set_budget).with(Auth))
             .at("/budget/update/:config_id", put(update_budget).with(Auth))
-            .at("/budget/spending", post(create_spending))
+            .at("/budget/spending", get(get_spending).post(create_spending))
+            .at("/budget/spending/:record_id", delete(delete_spending))
+            .at("/budget/weekly", get(get_weekly_summary))
+            .at("/budget/weekly/:week_key", get(get_weekly_summary_by_key))
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
             .at("/*path", options(options_handler))
     }

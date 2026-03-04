@@ -195,3 +195,34 @@ pub struct CreateSpendingResponse {
     pub remaining: i64,
     pub alert: bool,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct SpendingQueryParams {
+    pub week: Option<String>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct SpendingRecordResponse {
+    pub record_id: i64,
+    pub amount: i64,
+    pub merchant: Option<String>,
+    pub transacted_at: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SpendingListResponse {
+    pub week_key: String,
+    pub records: Vec<SpendingRecordResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WeeklySummaryResponse {
+    pub week_key: String,
+    pub weekly_limit: i64,
+    pub total_spent: i64,
+    pub remaining: i64,
+    pub usage_rate: f64,
+    pub alert: bool,
+    pub record_count: i64,
+}
