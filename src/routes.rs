@@ -14,3 +14,4 @@ pub mod get_count_with_tags;
 pub mod get_tags_with_category;
 pub mod set_budget;
 pub mod get_weekly_config;
+pub mod update_budget;

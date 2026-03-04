@@ -16,6 +16,7 @@ use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
 use crate::routes::get_tags_with_category::get_tags_with_category;
 use crate::routes::set_budget::set_budget;
+use crate::routes::update_budget::update_budget;
 use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
 use crate::routes::upload_image::upload_image;
@@ -82,6 +83,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/admin/posts", get(get_all_posts).with(Auth))
             .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
             .at("/budget/set", post(set_budget).with(Auth))
+            .at("/budget/update/:config_id", put(update_budget).with(Auth))
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
             .at("/*path", options(options_handler))
     }
