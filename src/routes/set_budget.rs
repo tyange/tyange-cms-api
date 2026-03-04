@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{Datelike, Local};
 use poem::{
     handler,
     http::StatusCode,
@@ -15,15 +16,23 @@ pub async fn set_budget(
     data: Data<&Arc<AppState>>,
     Json(payload): Json<WeeklyConfigRequest>,
 ) -> Result<Json<CustomResponse<()>>, Error> {
+    let today = Local::now().date_naive();
+    let week_key = format!(
+        "{}-W{:02}",
+        today.iso_week().year(),
+        today.iso_week().week()
+    );
+
     query(
-        r#"
-        INSERT INTO budget_config (weekly_limit, alert_threshold, started_at)
-        VALUES (?, ?, ?)
-        "#,
+        "INSERT INTO budget_config (week_key, weekly_limit, alert_threshold)
+         VALUES (?, ?, ?)
+         ON CONFLICT(week_key) DO UPDATE SET
+             weekly_limit = excluded.weekly_limit,
+             alert_threshold = excluded.alert_threshold",
     )
-    .bind(&payload.weekly_limit)
-    .bind(&payload.alert_threshold)
-    .bind(&payload.started_at)
+    .bind(&week_key)
+    .bind(payload.weekly_limit)
+    .bind(payload.alert_threshold)
     .execute(&data.db)
     .await
     .map_err(|e| {

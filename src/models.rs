@@ -168,9 +168,14 @@ pub struct SearchPostsWithWriter {
 }
 
 #[derive(Deserialize)]
-#[allow(dead_code)]
 pub struct WeeklyConfigRequest {
-    pub weekly_limit: i32,
+    pub weekly_limit: u32,
     pub alert_threshold: f64,
-    pub started_at: String 
+}
+#[derive(FromRow, Serialize)]
+pub struct WeeklyConfigResponse {
+    pub config_id: u32,
+    pub week_key: String,
+    pub weekly_limit: u32,
+    pub alert_threshold: f64,
 }

@@ -10,6 +10,7 @@ use std::{env, fs, sync::Arc};
 
 use crate::routes::delete_post::delete_post;
 use crate::routes::get_all_posts::get_all_posts;
+use crate::routes::get_weekly_config::get_weekly_config;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
@@ -79,7 +80,8 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/login", post(login))
             .at("/admin/add-user", post(add_user).with(Auth))
             .at("/admin/posts", get(get_all_posts).with(Auth))
-            .at("/budget", post(set_budget).with(Auth))
+            .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
+            .at("/budget/set", post(set_budget).with(Auth))
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
             .at("/*path", options(options_handler))
     }
