@@ -226,3 +226,27 @@ pub struct WeeklySummaryResponse {
     pub alert: bool,
     pub record_count: i64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct BudgetPlanRequest {
+    pub total_budget: i64,
+    pub from_date: String,
+    pub to_date: String,
+    pub alert_threshold: Option<f64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BudgetPlanWeekItem {
+    pub week_key: String,
+    pub days: u32,
+    pub weekly_limit: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BudgetPlanResponse {
+    pub total_budget: i64,
+    pub from_date: String,
+    pub to_date: String,
+    pub daily_budget: f64,
+    pub weeks: Vec<BudgetPlanWeekItem>,
+}

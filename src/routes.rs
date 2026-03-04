@@ -1,4 +1,5 @@
 pub mod add_user;
+pub mod create_budget_plan;
 pub mod create_spending;
 pub mod delete_post;
 pub mod delete_spending;
