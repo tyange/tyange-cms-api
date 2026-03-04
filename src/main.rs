@@ -5,6 +5,7 @@ mod routes;
 mod utils;
 
 use dotenv::dotenv;
+use middlewares::api_key_middleware::ApiKeyAuth;
 use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
 
@@ -12,12 +13,12 @@ use crate::routes::create_spending::create_spending;
 use crate::routes::delete_post::delete_post;
 use crate::routes::delete_spending::delete_spending;
 use crate::routes::get_all_posts::get_all_posts;
-use crate::routes::get_weekly_config::get_weekly_config;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
 use crate::routes::get_spending::get_spending;
 use crate::routes::get_tags_with_category::get_tags_with_category;
+use crate::routes::get_weekly_config::get_weekly_config;
 use crate::routes::get_weekly_summary::{get_weekly_summary, get_weekly_summary_by_key};
 use crate::routes::set_budget::set_budget;
 use crate::routes::update_budget::update_budget;
@@ -89,7 +90,10 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
             .at("/budget/set", post(set_budget).with(Auth))
             .at("/budget/update/:config_id", put(update_budget).with(Auth))
-            .at("/budget/spending", get(get_spending).post(create_spending))
+            .at(
+                "/budget/spending",
+                get(get_spending).post(create_spending.with(ApiKeyAuth)),
+            )
             .at("/budget/spending/:record_id", delete(delete_spending))
             .at("/budget/weekly", get(get_weekly_summary))
             .at("/budget/weekly/:week_key", get(get_weekly_summary_by_key))
@@ -105,7 +109,7 @@ async fn main() -> Result<(), std::io::Error> {
             .allow_origin("https://blog.tyange.com")
             .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
             .allow_credentials(true)
-            .allow_headers(vec!["authorization", "content-type", "accept"]),
+            .allow_headers(vec!["authorization", "x-api-key", "content-type", "accept"]),
     );
 
     Server::new(TcpListener::bind("0.0.0.0:8080"))
