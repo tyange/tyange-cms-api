@@ -28,6 +28,7 @@ jobs:
         run: |
           echo JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} > .env
           echo JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} >> .env
+          echo MACRODROID_API_KEY=${{ secrets.MACRODROID_API_KEY }} >> .env
           echo UPLOAD_PATH=${{ vars.UPLOAD_PATH }} >> .env
           echo DATABASE_PATH=${{ vars.DATABASE_PATH }} >> .env
 
