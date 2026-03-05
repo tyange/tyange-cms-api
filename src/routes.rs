@@ -12,6 +12,7 @@ pub mod get_spending;
 pub mod login;
 pub mod update_portfolio;
 pub mod update_post;
+pub mod update_spending;
 pub mod upload_image;
 pub mod upload_post;
 pub mod get_posts_with_tags;

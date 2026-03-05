@@ -26,6 +26,7 @@ use crate::routes::set_budget::set_budget;
 use crate::routes::update_budget::update_budget;
 use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
+use crate::routes::update_spending::update_spending;
 use crate::routes::upload_image::upload_image;
 use crate::{models::AppState, routes::add_user::add_user};
 use db::init_db;
@@ -101,7 +102,10 @@ async fn main() -> Result<(), std::io::Error> {
                 "/budget/spending",
                 get(get_spending).post(create_spending.with(ApiKeyAuth)),
             )
-            .at("/budget/spending/:record_id", delete(delete_spending))
+            .at(
+                "/budget/spending/:record_id",
+                put(update_spending).delete(delete_spending),
+            )
             .at("/budget/weekly", get(get_weekly_summary))
             .at("/budget/weekly/:week_key", get(get_weekly_summary_by_key))
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))

@@ -187,6 +187,13 @@ pub struct CreateSpendingRequest {
     pub transacted_at: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateSpendingRequest {
+    pub amount: i64,
+    pub merchant: Option<String>,
+    pub transacted_at: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct CreateSpendingResponse {
     pub record_id: i64,
