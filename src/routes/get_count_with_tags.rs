@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use poem::{
-    Error, handler, http::StatusCode, web::{Data, Json, Query}
+    handler,
+    http::StatusCode,
+    web::{Data, Json, Query},
+    Error,
 };
 use sqlx::{QueryBuilder, Row};
 
@@ -17,13 +20,11 @@ pub async fn get_count_with_tags(
         SELECT t.name AS tag, COUNT(*) AS count
         FROM post_tags pt
         JOIN tags t ON pt.tag_id = t.tag_id
-        "#
+        "#,
     );
 
     if let Some(category) = search_params.category {
-        builder.push(
-            "WHERE t.category = ",
-        );
+        builder.push("WHERE t.category = ");
         builder.push_bind(category);
     };
 

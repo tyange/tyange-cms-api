@@ -1,6 +1,6 @@
 use crate::models::{CustomResponse, PostItem, PostsResponse};
-use crate::AppState;
 use crate::utils::parse_tags;
+use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
 use poem::{handler, Error};

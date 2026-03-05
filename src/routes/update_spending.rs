@@ -56,7 +56,10 @@ pub async fn update_spending(
 
     if updated.rows_affected() == 0 {
         return Err(Error::from_string(
-            format!("해당 소비 기록(record_id={})을 찾을 수 없습니다.", record_id),
+            format!(
+                "해당 소비 기록(record_id={})을 찾을 수 없습니다.",
+                record_id
+            ),
             StatusCode::NOT_FOUND,
         ));
     }

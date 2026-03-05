@@ -9,12 +9,13 @@ use middlewares::api_key_middleware::ApiKeyAuth;
 use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
 
-use crate::routes::create_spending::create_spending;
 use crate::routes::analyze_card_excel::calculate_remaining_weekly_budget;
 use crate::routes::create_budget_plan::create_budget_plan;
+use crate::routes::create_spending::create_spending;
 use crate::routes::delete_post::delete_post;
 use crate::routes::delete_spending::delete_spending;
 use crate::routes::get_all_posts::get_all_posts;
+use crate::routes::get_budget_weeks::get_budget_weeks;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
@@ -107,6 +108,7 @@ async fn main() -> Result<(), std::io::Error> {
                 put(update_spending).delete(delete_spending),
             )
             .at("/budget/weekly", get(get_weekly_summary))
+            .at("/budget/weeks", get(get_budget_weeks))
             .at("/budget/weekly/:week_key", get(get_weekly_summary_by_key))
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
             .at("/*path", options(options_handler))

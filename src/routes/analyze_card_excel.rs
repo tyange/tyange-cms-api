@@ -78,15 +78,12 @@ pub async fn calculate_remaining_weekly_budget(
         }
     }
 
-    let total_budget = total_budget.ok_or_else(|| {
-        Error::from_string("total_budget가 필요합니다.", StatusCode::BAD_REQUEST)
-    })?;
-    let from_date = from_date.ok_or_else(|| {
-        Error::from_string("from_date가 필요합니다.", StatusCode::BAD_REQUEST)
-    })?;
-    let to_date = to_date.ok_or_else(|| {
-        Error::from_string("to_date가 필요합니다.", StatusCode::BAD_REQUEST)
-    })?;
+    let total_budget = total_budget
+        .ok_or_else(|| Error::from_string("total_budget가 필요합니다.", StatusCode::BAD_REQUEST))?;
+    let from_date = from_date
+        .ok_or_else(|| Error::from_string("from_date가 필요합니다.", StatusCode::BAD_REQUEST))?;
+    let to_date = to_date
+        .ok_or_else(|| Error::from_string("to_date가 필요합니다.", StatusCode::BAD_REQUEST))?;
     let as_of_date = as_of_date.unwrap_or_else(|| Local::now().date_naive());
 
     if total_budget <= 0 {
@@ -111,17 +108,11 @@ pub async fn calculate_remaining_weekly_budget(
     }
 
     let file_bytes = file_bytes.ok_or_else(|| {
-        Error::from_string(
-            "업로드할 엑셀 파일이 없습니다.",
-            StatusCode::BAD_REQUEST,
-        )
+        Error::from_string("업로드할 엑셀 파일이 없습니다.", StatusCode::BAD_REQUEST)
     })?;
 
     let candidate = analyze_excel_bytes(&file_bytes, file_name.as_deref()).map_err(|e| {
-        Error::from_string(
-            format!("엑셀 분석 실패: {}", e),
-            StatusCode::BAD_REQUEST,
-        )
+        Error::from_string(format!("엑셀 분석 실패: {}", e), StatusCode::BAD_REQUEST)
     })?;
 
     let spent_net = candidate
@@ -154,7 +145,10 @@ pub async fn calculate_remaining_weekly_budget(
     }))
 }
 
-fn analyze_excel_bytes(file_bytes: &[u8], file_name: Option<&str>) -> Result<SheetCandidate, String> {
+fn analyze_excel_bytes(
+    file_bytes: &[u8],
+    file_name: Option<&str>,
+) -> Result<SheetCandidate, String> {
     let is_xls = file_name
         .map(|name| name.to_ascii_lowercase().ends_with(".xls"))
         .unwrap_or(false);
@@ -228,9 +222,7 @@ where
             continue;
         }
 
-        let candidate = SheetCandidate {
-            rows,
-        };
+        let candidate = SheetCandidate { rows };
 
         if let Some(current) = &best_candidate {
             if candidate.rows.len() > current.rows.len() {
@@ -407,7 +399,8 @@ fn parse_amount_from_string(raw: &str) -> Option<i64> {
         return None;
     }
 
-    let is_negative = (trimmed.starts_with('(') && trimmed.ends_with(')')) || trimmed.starts_with('-');
+    let is_negative =
+        (trimmed.starts_with('(') && trimmed.ends_with(')')) || trimmed.starts_with('-');
 
     let filtered = trimmed
         .chars()
@@ -523,13 +516,15 @@ fn allocate_remaining_buckets(
     Ok(temp
         .into_iter()
         .enumerate()
-        .map(|(i, (start, end, days, amount, _))| RemainingWeeklyBudgetBucket {
-            bucket_index: i as u32 + 1,
-            from_date: start.format("%Y-%m-%d").to_string(),
-            to_date: end.format("%Y-%m-%d").to_string(),
-            days,
-            amount,
-        })
+        .map(
+            |(i, (start, end, days, amount, _))| RemainingWeeklyBudgetBucket {
+                bucket_index: i as u32 + 1,
+                from_date: start.format("%Y-%m-%d").to_string(),
+                to_date: end.format("%Y-%m-%d").to_string(),
+                days,
+                amount,
+            },
+        )
         .collect::<Vec<_>>())
 }
 

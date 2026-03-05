@@ -35,7 +35,10 @@ pub async fn update_budget(
 
     if updated.rows_affected() == 0 {
         return Err(Error::from_string(
-            format!("해당 예산 설정(config_id={})을 찾을 수 없습니다.", config_id),
+            format!(
+                "해당 예산 설정(config_id={})을 찾을 수 없습니다.",
+                config_id
+            ),
             StatusCode::NOT_FOUND,
         ));
     }

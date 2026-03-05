@@ -159,6 +159,9 @@ CORS preflight 처리.
 - `GET /budget/weekly`
 현재 주차 예산 요약(총지출/잔여/사용률/알림) 조회.
 
+- `GET /budget/weeks`
+예산이 등록된 주차 목록 조회(`weeks`, `min_week`, `max_week`).
+
 - `GET /budget/weekly/:week_key`
 특정 주차(`YYYY-Www`) 예산 요약 조회.
 

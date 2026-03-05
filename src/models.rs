@@ -234,6 +234,13 @@ pub struct WeeklySummaryResponse {
     pub record_count: i64,
 }
 
+#[derive(Debug, Serialize)]
+pub struct BudgetWeeksResponse {
+    pub weeks: Vec<String>,
+    pub min_week: Option<String>,
+    pub max_week: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct BudgetPlanRequest {
     pub total_budget: i64,

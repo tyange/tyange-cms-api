@@ -2,9 +2,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use poem::{
-    Error, handler, http::StatusCode, web::{Data, Json}
+    handler,
+    http::StatusCode,
+    web::{Data, Json},
+    Error,
 };
-use sqlx::{Row, query};
+use sqlx::{query, Row};
 
 use crate::models::{AppState, CustomResponse, TagsWithCategory};
 
