@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 bcrypt = "0.17.0"
+calamine = "0.26.1"
 chrono = "0.4.40"
 dotenv = "0.15.0"
 jsonwebtoken = "9.3.1"

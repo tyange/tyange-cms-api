@@ -10,6 +10,7 @@ use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
 
 use crate::routes::create_spending::create_spending;
+use crate::routes::analyze_card_excel::calculate_remaining_weekly_budget;
 use crate::routes::create_budget_plan::create_budget_plan;
 use crate::routes::delete_post::delete_post;
 use crate::routes::delete_spending::delete_spending;
@@ -91,6 +92,10 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
             .at("/budget/set", post(set_budget).with(Auth))
             .at("/budget/plan", post(create_budget_plan).with(Auth))
+            .at(
+                "/budget/card-excel/remaining-weekly-budget",
+                post(calculate_remaining_weekly_budget).with(Auth),
+            )
             .at("/budget/update/:config_id", put(update_budget).with(Auth))
             .at(
                 "/budget/spending",
