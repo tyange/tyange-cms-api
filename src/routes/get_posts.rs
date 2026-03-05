@@ -22,12 +22,15 @@ pub async fn get_posts(
         "#,
     );
 
+    builder.push("WHERE p.status != 'draft' ");
+
     if let Some(id) = search_params.writer_id {
-        builder.push("WHERE p.writer_id = ");
+        builder.push("AND p.writer_id = ");
         builder.push_bind(id);
+        builder.push(" ");
     }
 
-    builder.push("AND p.status != 'draft' GROUP BY p.post_id ORDER BY p.published_at DESC, p.created_at DESC");
+    builder.push("GROUP BY p.post_id ORDER BY p.published_at DESC, p.created_at DESC");
 
     let result = builder.build().fetch_all(&data.db).await;
 
