@@ -64,6 +64,7 @@ pub struct LoginRequest {
 pub struct LoginResponse {
     pub access_token: String,
     pub refresh_token: String,
+    pub user_role: String,
 }
 
 #[derive(Debug, FromRow)]

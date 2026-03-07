@@ -23,7 +23,7 @@ pub async fn login(
 ) -> poem::Result<Response> {
     let user = sqlx::query(
         r#"
-        SELECT user_id, password FROM users WHERE user_id = ?
+        SELECT user_id, password, user_role FROM users WHERE user_id = ?
         "#,
     )
     .bind(&payload.user_id)
@@ -46,6 +46,7 @@ pub async fn login(
 
     let user_id: String = row.try_get("user_id").unwrap_or_default();
     let stored_hash: String = row.try_get("password").unwrap_or_default();
+    let user_role: String = row.try_get("user_role").unwrap_or_default();
 
     let password_matches = verify(&payload.password, &stored_hash).unwrap_or(false);
 
@@ -72,7 +73,8 @@ pub async fn login(
         };
 
         let access_token_secret_bytes = access_token_secret.as_bytes();
-        let access_token = Claims::create_access_token(&user_id, &access_token_secret_bytes)
+        let access_token =
+            Claims::create_access_token(&user_id, &user_role, &access_token_secret_bytes)
             .map_err(|e| {
                 eprintln!("Server configuration error: {:?}", e);
                 poem::Error::from_string(
@@ -82,7 +84,8 @@ pub async fn login(
             })?;
 
         let refresh_token_secret_bytes = refresh_token_secret.as_bytes();
-        let refresh_token = Claims::create_refresh_token(&user_id, &refresh_token_secret_bytes)
+        let refresh_token =
+            Claims::create_refresh_token(&user_id, &user_role, &refresh_token_secret_bytes)
             .map_err(|e| {
                 eprintln!("Server configuration error: {:?}", e);
                 poem::Error::from_string(
@@ -94,6 +97,7 @@ pub async fn login(
         let login_response = LoginResponse {
             access_token,
             refresh_token,
+            user_role,
         };
 
         let json_body = serde_json::to_string(&login_response).map_err(|_| {

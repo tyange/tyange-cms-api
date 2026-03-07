@@ -6,13 +6,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
+    pub role: String,
     pub exp: usize,
     pub iat: usize,
     pub token_type: String,
 }
 
 impl Claims {
-    pub fn new(user_id: &str, token_type: &str, expires_in_minutes: i64) -> Self {
+    pub fn new(user_id: &str, role: &str, token_type: &str, expires_in_minutes: i64) -> Self {
         let expiration = Utc::now()
             .checked_add_signed(Duration::minutes(expires_in_minutes))
             .expect("유효한 타임 스탬프를 생성할 수 없습니다.")
@@ -22,6 +23,7 @@ impl Claims {
 
         Self {
             sub: user_id.to_owned(),
+            role: role.to_owned(),
             exp: expiration,
             iat,
             token_type: token_type.to_owned(),
@@ -77,13 +79,13 @@ impl Claims {
         }
     }
 
-    pub fn create_access_token(user_id: &str, secret: &[u8]) -> Result<String, Error> {
-        let claims = Self::new(user_id, "access", 600);
+    pub fn create_access_token(user_id: &str, role: &str, secret: &[u8]) -> Result<String, Error> {
+        let claims = Self::new(user_id, role, "access", 600);
         claims.to_token(secret)
     }
 
-    pub fn create_refresh_token(user_id: &str, secret: &[u8]) -> Result<String, Error> {
-        let claims = Self::new(user_id, "refresh", 7 * 24 * 60);
+    pub fn create_refresh_token(user_id: &str, role: &str, secret: &[u8]) -> Result<String, Error> {
+        let claims = Self::new(user_id, role, "refresh", 7 * 24 * 60);
         claims.to_token(secret)
     }
 }

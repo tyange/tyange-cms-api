@@ -5,6 +5,7 @@ mod routes;
 mod utils;
 
 use dotenv::dotenv;
+use middlewares::admin_middleware::AdminOnly;
 use middlewares::api_key_middleware::ApiKeyAuth;
 use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
@@ -86,19 +87,21 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/tags", get(get_count_with_tags))
             .at("/tags-with-category", get(get_tags_with_category))
             .at("/portfolio", get(get_portfolio))
-            .at("/portfolio/update", put(update_portfolio).with(Auth))
+            .at("/portfolio/update", put(update_portfolio).with(AdminOnly).with(Auth))
             .at("/upload-image", post(upload_image).with(Auth))
             .at("/login", post(login))
-            .at("/admin/add-user", post(add_user).with(Auth))
-            .at("/admin/posts", get(get_all_posts).with(Auth))
-            .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
-            .at("/budget/set", post(set_budget).with(Auth))
-            .at("/budget/plan", post(create_budget_plan).with(Auth))
+            .at("/admin/add-user", post(add_user).with(AdminOnly).with(Auth))
+            .at("/admin/posts", get(get_all_posts).with(AdminOnly).with(Auth))
+            .at("/budget/weekly-config", get(get_weekly_config).with(AdminOnly).with(Auth))
+            .at("/budget/set", post(set_budget).with(AdminOnly).with(Auth))
+            .at("/budget/plan", post(create_budget_plan).with(AdminOnly).with(Auth))
             .at(
                 "/budget/card-excel/remaining-weekly-budget",
-                post(calculate_remaining_weekly_budget).with(Auth),
+                post(calculate_remaining_weekly_budget)
+                    .with(AdminOnly)
+                    .with(Auth),
             )
-            .at("/budget/update/:config_id", put(update_budget).with(Auth))
+            .at("/budget/update/:config_id", put(update_budget).with(AdminOnly).with(Auth))
             .at(
                 "/budget/spending",
                 get(get_spending).post(create_spending.with(ApiKeyAuth)),

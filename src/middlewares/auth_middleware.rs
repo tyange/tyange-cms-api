@@ -45,6 +45,7 @@ impl<E: Endpoint> Endpoint for AuthImpl<E> {
         if is_valid {
             req.extensions_mut().insert(AuthenticatedUser {
                 user_id: claims.claims.sub,
+                role: claims.claims.role,
             });
             self.ep.call(req).await
         } else {
