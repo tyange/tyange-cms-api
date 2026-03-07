@@ -5,7 +5,7 @@ use poem::web::{Data, Json, Path};
 use poem::{handler, Error, Request};
 use sqlx::query;
 use std::sync::Arc;
-use tyange_cms_api::auth::permission::permission;
+use tyange_cms_api::auth::authorization::{current_user, ensure_post_owner};
 
 #[handler]
 pub async fn delete_post(
@@ -13,55 +13,39 @@ pub async fn delete_post(
     Path(post_id): Path<String>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<CustomResponse<DeletePostResponse>>, Error> {
-    if let Some(token) = req.header("Authorization") {
-        match permission(&token, &post_id, &data.db).await {
-            Ok(is_ok_permission) => {
-                if is_ok_permission {
-                    let result = query(
-                        r#"
-                            DELETE FROM posts WHERE post_id = ?
-                            "#,
-                    )
-                    .bind(&post_id)
-                    .execute(&data.db)
-                    .await;
+    let user = current_user(req)?;
+    ensure_post_owner(user, &post_id, &data.db).await?;
 
-                    match result {
-                        Ok(result) => {
-                            if result.rows_affected() == 0 {
-                                return Err(Error::from_string(
-                                    "게시글을 찾을 수 없습니다.",
-                                    StatusCode::NOT_FOUND,
-                                ));
-                            }
+    let result = query(
+        r#"
+            DELETE FROM posts WHERE post_id = ?
+            "#,
+    )
+    .bind(&post_id)
+    .execute(&data.db)
+    .await;
 
-                            Ok(Json(CustomResponse {
-                                status: true,
-                                data: Some(DeletePostResponse { post_id }),
-                                message: Some(String::from("포스트가 삭제되었습니다.")),
-                            }))
-                        }
-                        Err(err) => {
-                            eprintln!("Error delete post: {}", err);
-                            Err(Error::from_string(
-                                err.to_string(),
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                            ))
-                        }
-                    }
-                } else {
-                    Err(Error::from_string(
-                        "본인이 업로드한 게시글만 삭제할 수 있습니다.",
-                        StatusCode::FORBIDDEN,
-                    ))
-                }
+    match result {
+        Ok(result) => {
+            if result.rows_affected() == 0 {
+                return Err(Error::from_string(
+                    "게시글을 찾을 수 없습니다.",
+                    StatusCode::NOT_FOUND,
+                ));
             }
-            Err(err) => Err(err),
+
+            Ok(Json(CustomResponse {
+                status: true,
+                data: Some(DeletePostResponse { post_id }),
+                message: Some(String::from("포스트가 삭제되었습니다.")),
+            }))
         }
-    } else {
-        Err(Error::from_string(
-            "토큰을 받지 못했어요.",
-            StatusCode::UNAUTHORIZED,
-        ))
+        Err(err) => {
+            eprintln!("Error delete post: {}", err);
+            Err(Error::from_string(
+                err.to_string(),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
     }
 }

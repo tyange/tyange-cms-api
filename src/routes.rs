@@ -26,3 +26,5 @@ pub mod upload_post;
 
 #[cfg(test)]
 mod get_budget_weeks_test;
+#[cfg(test)]
+mod post_authorization_test;

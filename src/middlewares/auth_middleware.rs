@@ -1,6 +1,7 @@
 use std::env;
 
 use poem::{http::StatusCode, Endpoint, Error, Middleware, Request};
+use tyange_cms_api::auth::authorization::AuthenticatedUser;
 use tyange_cms_api::auth::jwt::Claims;
 
 pub struct Auth;
@@ -20,7 +21,7 @@ pub struct AuthImpl<E> {
 impl<E: Endpoint> Endpoint for AuthImpl<E> {
     type Output = E::Output;
 
-    async fn call(&self, req: Request) -> Result<Self::Output, Error> {
+    async fn call(&self, mut req: Request) -> Result<Self::Output, Error> {
         let token = req.headers().get("Authorization").ok_or_else(|| {
             Error::from_string("Authorization header is required", StatusCode::UNAUTHORIZED)
         })?;
@@ -33,15 +34,18 @@ impl<E: Endpoint> Endpoint for AuthImpl<E> {
         })?;
 
         let secret_bytes = secret.as_bytes();
-        let is_valid = Claims::validate_token(
-            token.to_str().map_err(|e| {
-                Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
-            })?,
-            &secret_bytes,
-        )
-        .map_err(|e| Error::from_string(e.to_string(), StatusCode::UNAUTHORIZED))?;
+        let token = token
+            .to_str()
+            .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))?;
+        let claims = Claims::from_token(token, &secret_bytes)
+            .map_err(|e| Error::from_string(e.to_string(), StatusCode::UNAUTHORIZED))?;
+        let is_valid = Claims::validate_token(token, &secret_bytes)
+            .map_err(|e| Error::from_string(e.to_string(), StatusCode::UNAUTHORIZED))?;
 
         if is_valid {
+            req.extensions_mut().insert(AuthenticatedUser {
+                user_id: claims.claims.sub,
+            });
             self.ep.call(req).await
         } else {
             Err(Error::from_string(
