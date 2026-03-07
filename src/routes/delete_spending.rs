@@ -4,19 +4,23 @@ use poem::{
     handler,
     http::StatusCode,
     web::{Data, Path},
-    Error,
+    Error, Request,
 };
 use sqlx::query;
 
 use crate::models::AppState;
+use tyange_cms_api::auth::authorization::current_user;
 
 #[handler]
 pub async fn delete_spending(
+    req: &Request,
     Path(record_id): Path<i64>,
     data: Data<&Arc<AppState>>,
 ) -> Result<StatusCode, Error> {
-    let result = query("DELETE FROM spending_records WHERE record_id = ?")
+    let user = current_user(req)?;
+    let result = query("DELETE FROM spending_records WHERE record_id = ? AND owner_user_id = ?")
         .bind(record_id)
+        .bind(&user.user_id)
         .execute(&data.db)
         .await
         .map_err(|e| {

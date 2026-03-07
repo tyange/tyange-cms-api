@@ -4,7 +4,7 @@ use poem::{
     handler,
     http::StatusCode,
     web::{Data, Json},
-    Error,
+    Error, Request,
 };
 use sqlx::{query, query_as, FromRow};
 
@@ -12,6 +12,7 @@ use crate::{
     models::{AppState, CreateSpendingRequest, CreateSpendingResponse},
     utils::{iso_week_key_from_datetime, parse_transacted_at},
 };
+use tyange_cms_api::auth::authorization::current_user;
 
 #[derive(FromRow)]
 struct ActiveBudget {
@@ -26,9 +27,11 @@ struct WeeklyTotal {
 
 #[handler]
 pub async fn create_spending(
+    req: &Request,
     data: Data<&Arc<AppState>>,
     Json(payload): Json<CreateSpendingRequest>,
 ) -> Result<(StatusCode, Json<CreateSpendingResponse>), Error> {
+    let user = current_user(req)?;
     if payload.amount <= 0 {
         return Err(Error::from_string(
             "amount는 0보다 커야 합니다.",
@@ -47,9 +50,10 @@ pub async fn create_spending(
     let budget = query_as::<_, ActiveBudget>(
         "SELECT weekly_limit, alert_threshold
          FROM budget_config
-         WHERE week_key = ?
+         WHERE owner_user_id = ? AND week_key = ?
          LIMIT 1",
     )
+    .bind(&user.user_id)
     .bind(&week_key)
     .fetch_optional(&data.db)
     .await
@@ -70,9 +74,10 @@ pub async fn create_spending(
     let transacted_at_text = transacted_at.format("%Y-%m-%d %H:%M:%S").to_string();
 
     let inserted = query(
-        "INSERT INTO spending_records (amount, merchant, transacted_at, week_key)
-         VALUES (?, ?, ?, ?)",
+        "INSERT INTO spending_records (owner_user_id, amount, merchant, transacted_at, week_key)
+         VALUES (?, ?, ?, ?, ?)",
     )
+    .bind(&user.user_id)
     .bind(payload.amount)
     .bind(payload.merchant)
     .bind(&transacted_at_text)
@@ -89,8 +94,9 @@ pub async fn create_spending(
     let weekly_total = query_as::<_, WeeklyTotal>(
         "SELECT COALESCE(SUM(amount), 0) AS weekly_total
          FROM spending_records
-         WHERE week_key = ?",
+         WHERE owner_user_id = ? AND week_key = ?",
     )
+    .bind(&user.user_id)
     .bind(&week_key)
     .fetch_one(&data.db)
     .await

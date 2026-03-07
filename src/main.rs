@@ -6,7 +6,6 @@ mod utils;
 
 use dotenv::dotenv;
 use middlewares::admin_middleware::AdminOnly;
-use middlewares::api_key_middleware::ApiKeyAuth;
 use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
 
@@ -92,27 +91,25 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/login", post(login))
             .at("/admin/add-user", post(add_user).with(AdminOnly).with(Auth))
             .at("/admin/posts", get(get_all_posts).with(AdminOnly).with(Auth))
-            .at("/budget/weekly-config", get(get_weekly_config).with(AdminOnly).with(Auth))
-            .at("/budget/set", post(set_budget).with(AdminOnly).with(Auth))
-            .at("/budget/plan", post(create_budget_plan).with(AdminOnly).with(Auth))
+            .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
+            .at("/budget/set", post(set_budget).with(Auth))
+            .at("/budget/plan", post(create_budget_plan).with(Auth))
             .at(
                 "/budget/card-excel/remaining-weekly-budget",
-                post(calculate_remaining_weekly_budget)
-                    .with(AdminOnly)
-                    .with(Auth),
+                post(calculate_remaining_weekly_budget).with(Auth),
             )
-            .at("/budget/update/:config_id", put(update_budget).with(AdminOnly).with(Auth))
+            .at("/budget/update/:config_id", put(update_budget).with(Auth))
             .at(
                 "/budget/spending",
-                get(get_spending).post(create_spending.with(ApiKeyAuth)),
+                get(get_spending.with(Auth)).post(create_spending.with(Auth)),
             )
             .at(
                 "/budget/spending/:record_id",
-                put(update_spending).delete(delete_spending),
+                put(update_spending.with(Auth)).delete(delete_spending.with(Auth)),
             )
-            .at("/budget/weekly", get(get_weekly_summary))
-            .at("/budget/weeks", get(get_budget_weeks))
-            .at("/budget/weekly/:week_key", get(get_weekly_summary_by_key))
+            .at("/budget/weekly", get(get_weekly_summary).with(Auth))
+            .at("/budget/weeks", get(get_budget_weeks).with(Auth))
+            .at("/budget/weekly/:week_key", get(get_weekly_summary_by_key).with(Auth))
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
             .at("/*path", options(options_handler))
     }

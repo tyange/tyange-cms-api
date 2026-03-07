@@ -25,6 +25,8 @@ pub mod upload_image;
 pub mod upload_post;
 
 #[cfg(test)]
+mod budget_spending_scope_test;
+#[cfg(test)]
 mod get_budget_weeks_test;
 #[cfg(test)]
 mod post_authorization_test;

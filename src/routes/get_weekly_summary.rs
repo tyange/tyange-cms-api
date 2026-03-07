@@ -4,7 +4,7 @@ use poem::{
     handler,
     http::StatusCode,
     web::{Data, Json, Path},
-    Error,
+    Error, Request,
 };
 use sqlx::{query_as, FromRow};
 
@@ -12,6 +12,7 @@ use crate::{
     models::{AppState, WeeklySummaryResponse},
     utils::{current_iso_week_key, normalize_week_key},
 };
+use tyange_cms_api::auth::authorization::current_user;
 
 #[derive(FromRow)]
 struct ActiveBudget {
@@ -27,35 +28,41 @@ struct WeeklyAggregate {
 
 #[handler]
 pub async fn get_weekly_summary(
+    req: &Request,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<WeeklySummaryResponse>, Error> {
-    build_weekly_summary(&data, &current_iso_week_key()).await
+    let user = current_user(req)?;
+    build_weekly_summary(&data, &current_iso_week_key(), &user.user_id).await
 }
 
 #[handler]
 pub async fn get_weekly_summary_by_key(
+    req: &Request,
     Path(week_key): Path<String>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<WeeklySummaryResponse>, Error> {
+    let user = current_user(req)?;
     let normalized = normalize_week_key(&week_key).map_err(|_| {
         Error::from_string(
             "week_key 형식이 올바르지 않습니다. 예: 2026-W10",
             StatusCode::BAD_REQUEST,
         )
     })?;
-    build_weekly_summary(&data, &normalized).await
+    build_weekly_summary(&data, &normalized, &user.user_id).await
 }
 
 async fn build_weekly_summary(
     data: &Data<&Arc<AppState>>,
     week_key: &str,
+    owner_user_id: &str,
 ) -> Result<Json<WeeklySummaryResponse>, Error> {
     let budget = query_as::<_, ActiveBudget>(
         "SELECT weekly_limit, alert_threshold
          FROM budget_config
-         WHERE week_key = ?
+         WHERE owner_user_id = ? AND week_key = ?
          LIMIT 1",
     )
+    .bind(owner_user_id)
     .bind(week_key)
     .fetch_optional(&data.db)
     .await
@@ -77,8 +84,9 @@ async fn build_weekly_summary(
         "SELECT COALESCE(SUM(amount), 0) AS total_spent,
                 COUNT(record_id) AS record_count
          FROM spending_records
-         WHERE week_key = ?",
+         WHERE owner_user_id = ? AND week_key = ?",
     )
+    .bind(owner_user_id)
     .bind(week_key)
     .fetch_one(&data.db)
     .await

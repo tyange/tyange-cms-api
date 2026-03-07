@@ -4,7 +4,7 @@ use poem::{
     handler,
     http::StatusCode,
     web::{Data, Json, Path},
-    Error,
+    Error, Request,
 };
 use sqlx::{query, query_as};
 
@@ -12,13 +12,16 @@ use crate::{
     models::{AppState, SpendingRecordResponse, UpdateSpendingRequest},
     utils::parse_transacted_at,
 };
+use tyange_cms_api::auth::authorization::current_user;
 
 #[handler]
 pub async fn update_spending(
+    req: &Request,
     Path(record_id): Path<i64>,
     data: Data<&Arc<AppState>>,
     Json(payload): Json<UpdateSpendingRequest>,
 ) -> Result<Json<SpendingRecordResponse>, Error> {
+    let user = current_user(req)?;
     if payload.amount <= 0 {
         return Err(Error::from_string(
             "amount는 0보다 커야 합니다.",
@@ -38,13 +41,14 @@ pub async fn update_spending(
     let updated = query(
         "UPDATE spending_records
          SET amount = ?, merchant = ?, transacted_at = ?, week_key = ?
-         WHERE record_id = ?",
+         WHERE record_id = ? AND owner_user_id = ?",
     )
     .bind(payload.amount)
     .bind(payload.merchant)
     .bind(&transacted_at_text)
     .bind(&week_key)
     .bind(record_id)
+    .bind(&user.user_id)
     .execute(&data.db)
     .await
     .map_err(|e| {
@@ -67,9 +71,10 @@ pub async fn update_spending(
     let record = query_as::<_, SpendingRecordResponse>(
         "SELECT record_id, amount, merchant, transacted_at, created_at
          FROM spending_records
-         WHERE record_id = ?",
+         WHERE record_id = ? AND owner_user_id = ?",
     )
     .bind(record_id)
+    .bind(&user.user_id)
     .fetch_one(&data.db)
     .await
     .map_err(|e| {

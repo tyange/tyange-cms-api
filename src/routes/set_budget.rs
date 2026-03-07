@@ -5,17 +5,20 @@ use poem::{
     handler,
     http::StatusCode,
     web::{Data, Json},
-    Error,
+    Error, Request,
 };
 use sqlx::query;
 
 use crate::models::{AppState, CustomResponse, WeeklyConfigRequest};
+use tyange_cms_api::auth::authorization::current_user;
 
 #[handler]
 pub async fn set_budget(
+    req: &Request,
     data: Data<&Arc<AppState>>,
     Json(payload): Json<WeeklyConfigRequest>,
 ) -> Result<Json<CustomResponse<()>>, Error> {
+    let user = current_user(req)?;
     let today = Local::now().date_naive();
     let week_key = format!(
         "{}-W{:02}",
@@ -24,12 +27,13 @@ pub async fn set_budget(
     );
 
     query(
-        "INSERT INTO budget_config (week_key, weekly_limit, alert_threshold)
-         VALUES (?, ?, ?)
-         ON CONFLICT(week_key) DO UPDATE SET
+        "INSERT INTO budget_config (owner_user_id, week_key, weekly_limit, alert_threshold)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(owner_user_id, week_key) DO UPDATE SET
              weekly_limit = excluded.weekly_limit,
              alert_threshold = excluded.alert_threshold",
     )
+    .bind(&user.user_id)
     .bind(&week_key)
     .bind(payload.weekly_limit)
     .bind(payload.alert_threshold)
