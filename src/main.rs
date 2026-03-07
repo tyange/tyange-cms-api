@@ -23,7 +23,9 @@ use crate::routes::get_spending::get_spending;
 use crate::routes::get_tags_with_category::get_tags_with_category;
 use crate::routes::get_weekly_config::get_weekly_config;
 use crate::routes::get_weekly_summary::{get_weekly_summary, get_weekly_summary_by_key};
+use crate::routes::me::me;
 use crate::routes::set_budget::set_budget;
+use crate::routes::signup::signup;
 use crate::routes::update_budget::update_budget;
 use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
@@ -35,7 +37,9 @@ use poem::{
     delete, endpoint::StaticFilesEndpoint, get, handler, http::StatusCode, listener::TcpListener,
     middleware::Cors, options, post, put, EndpointExt, Response, Route, Server,
 };
-use routes::{get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post};
+    use routes::{
+        get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post,
+    };
 use sqlx::SqlitePool;
 
 #[handler]
@@ -89,6 +93,8 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/portfolio/update", put(update_portfolio).with(AdminOnly).with(Auth))
             .at("/upload-image", post(upload_image).with(Auth))
             .at("/login", post(login))
+            .at("/signup", post(signup))
+            .at("/me", get(me).with(Auth))
             .at("/admin/add-user", post(add_user).with(AdminOnly).with(Auth))
             .at("/admin/posts", get(get_all_posts).with(AdminOnly).with(Auth))
             .at("/budget/weekly-config", get(get_weekly_config).with(Auth))

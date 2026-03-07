@@ -67,6 +67,12 @@ pub struct LoginResponse {
     pub user_role: String,
 }
 
+#[derive(Debug, Serialize, FromRow)]
+pub struct MeResponse {
+    pub user_id: String,
+    pub user_role: String,
+}
+
 #[derive(Debug, FromRow)]
 pub struct PostResponseDb {
     pub post_id: String,
@@ -114,6 +120,12 @@ pub struct AddUserRequest {
     pub user_id: String,
     pub password: String,
     pub user_role: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SignupRequest {
+    pub email: String,
+    pub password: String,
 }
 
 #[derive(Debug, Serialize)]

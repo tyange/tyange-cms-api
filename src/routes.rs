@@ -16,7 +16,9 @@ pub mod get_tags_with_category;
 pub mod get_weekly_config;
 pub mod get_weekly_summary;
 pub mod login;
+pub mod me;
 pub mod set_budget;
+pub mod signup;
 pub mod update_budget;
 pub mod update_portfolio;
 pub mod update_post;
@@ -30,3 +32,5 @@ mod budget_spending_scope_test;
 mod get_budget_weeks_test;
 #[cfg(test)]
 mod post_authorization_test;
+#[cfg(test)]
+mod signup_test;
