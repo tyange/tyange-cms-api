@@ -27,11 +27,20 @@ pub async fn delete_post(
                     .await;
 
                     match result {
-                        Ok(_) => Ok(Json(CustomResponse {
-                            status: true,
-                            data: Some(DeletePostResponse { post_id }),
-                            message: Some(String::from("포스트가 삭제되었습니다.")),
-                        })),
+                        Ok(result) => {
+                            if result.rows_affected() == 0 {
+                                return Err(Error::from_string(
+                                    "게시글을 찾을 수 없습니다.",
+                                    StatusCode::NOT_FOUND,
+                                ));
+                            }
+
+                            Ok(Json(CustomResponse {
+                                status: true,
+                                data: Some(DeletePostResponse { post_id }),
+                                message: Some(String::from("포스트가 삭제되었습니다.")),
+                            }))
+                        }
                         Err(err) => {
                             eprintln!("Error delete post: {}", err);
                             Err(Error::from_string(
@@ -47,10 +56,7 @@ pub async fn delete_post(
                     ))
                 }
             }
-            Err(err) => Err(Error::from_string(
-                format!("Error delete posts: {}", err),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )),
+            Err(err) => Err(err),
         }
     } else {
         Err(Error::from_string(

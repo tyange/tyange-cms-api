@@ -25,7 +25,7 @@ pub async fn update_post(
                         )
                     })?;
 
-                    query(
+                    let updated = query(
                         r#"
                         UPDATE posts SET title = ?, description = ?, published_at = ?,
                         content = ?, status = ? WHERE post_id = ?
@@ -45,6 +45,13 @@ pub async fn update_post(
                             StatusCode::INTERNAL_SERVER_ERROR,
                         )
                     })?;
+
+                    if updated.rows_affected() == 0 {
+                        return Err(Error::from_string(
+                            "게시글을 찾을 수 없습니다.",
+                            StatusCode::NOT_FOUND,
+                        ));
+                    }
 
                     // 2. 기존 태그 관계 삭제
                     query("DELETE FROM post_tags WHERE post_id = ?")
@@ -128,10 +135,7 @@ pub async fn update_post(
                     ))
                 }
             }
-            Err(err) => Err(Error::from_string(
-                format!("Error update posts: {}", err),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )),
+            Err(err) => Err(err),
         }
     } else {
         Err(Error::from_string(

@@ -1,7 +1,7 @@
 use crate::auth::jwt::Claims;
 use poem::http::StatusCode;
 use poem::Error;
-use sqlx::{query_scalar, Pool, Sqlite};
+use sqlx::{query_scalar, Error as SqlxError, Pool, Sqlite};
 use std::env;
 
 pub async fn permission(token: &str, post_id: &str, db: &Pool<Sqlite>) -> Result<bool, Error> {
@@ -25,7 +25,12 @@ pub async fn permission(token: &str, post_id: &str, db: &Pool<Sqlite>) -> Result
     .await
     .map_err(|err| {
         eprintln!("Error update posts: {}", err);
-        Error::from_string("Failed to get post id.", StatusCode::INTERNAL_SERVER_ERROR)
+        match err {
+            SqlxError::RowNotFound => {
+                Error::from_string("게시글을 찾을 수 없습니다.", StatusCode::NOT_FOUND)
+            }
+            _ => Error::from_string("Failed to get post id.", StatusCode::INTERNAL_SERVER_ERROR),
+        }
     })?;
 
     Ok(user_id == writer_id)
