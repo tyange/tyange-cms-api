@@ -1,47 +1,82 @@
-use std::env;
-
 use poem::{http::StatusCode, Endpoint, Error, Middleware, Request};
+use std::sync::Arc;
+use tyange_cms_api::{
+    auth::{
+        api_key::{find_active_api_key_by_raw_key, touch_api_key_last_used},
+        authorization::AuthenticatedUser,
+    },
+};
 
-pub struct ApiKeyAuth;
+use crate::{middlewares::auth_middleware::require_jwt_user, models::AppState};
 
-impl<E: Endpoint> Middleware<E> for ApiKeyAuth {
-    type Output = ApiKeyAuthImpl<E>;
+pub struct JwtOrApiKeyAuth;
+
+impl<E: Endpoint> Middleware<E> for JwtOrApiKeyAuth {
+    type Output = JwtOrApiKeyAuthImpl<E>;
 
     fn transform(&self, ep: E) -> Self::Output {
-        ApiKeyAuthImpl { ep }
+        JwtOrApiKeyAuthImpl { ep }
     }
 }
 
-pub struct ApiKeyAuthImpl<E> {
+pub struct JwtOrApiKeyAuthImpl<E> {
     ep: E,
 }
 
-impl<E: Endpoint> Endpoint for ApiKeyAuthImpl<E> {
-    type Output = E::Output;
+async fn authenticated_user_from_api_key(req: &Request) -> Result<AuthenticatedUser, Error> {
+    let header_value = req.headers().get("X-API-Key").ok_or_else(|| {
+        Error::from_string("X-API-Key header is required", StatusCode::UNAUTHORIZED)
+    })?;
 
-    async fn call(&self, req: Request) -> Result<Self::Output, Error> {
-        let header_value = req.headers().get("X-API-Key").ok_or_else(|| {
-            Error::from_string("X-API-Key header is required", StatusCode::UNAUTHORIZED)
-        })?;
+    let raw_key = header_value
+        .to_str()
+        .map_err(|_| Error::from_string("Invalid X-API-Key header", StatusCode::UNAUTHORIZED))?;
 
-        let incoming_key = header_value.to_str().map_err(|_| {
-            Error::from_string("Invalid X-API-Key header", StatusCode::UNAUTHORIZED)
-        })?;
+    let state = req.data::<Arc<AppState>>().ok_or_else(|| {
+        Error::from_string(
+            "AppState is not configured",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })?;
 
-        let expected_key = env::var("MACRODROID_API_KEY").map_err(|e| {
+    let record = find_active_api_key_by_raw_key(&state.db, raw_key)
+        .await
+        .map_err(|err| {
             Error::from_string(
-                format!("Server configuration error: {}", e),
+                format!("API key lookup failed: {}", err),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?
+        .ok_or_else(|| {
+            Error::from_string("유효하지 않은 API Key입니다.", StatusCode::UNAUTHORIZED)
+        })?;
+
+    touch_api_key_last_used(&state.db, record.id)
+        .await
+        .map_err(|err| {
+            Error::from_string(
+                format!("API key update failed: {}", err),
                 StatusCode::INTERNAL_SERVER_ERROR,
             )
         })?;
 
-        if incoming_key != expected_key {
-            return Err(Error::from_string(
-                "유효하지 않은 API Key입니다.",
-                StatusCode::UNAUTHORIZED,
-            ));
-        }
+    Ok(AuthenticatedUser {
+        user_id: record.user_id,
+        role: record.role,
+    })
+}
 
+impl<E: Endpoint> Endpoint for JwtOrApiKeyAuthImpl<E> {
+    type Output = E::Output;
+
+    async fn call(&self, mut req: Request) -> Result<Self::Output, Error> {
+        let user = if req.headers().contains_key("Authorization") {
+            require_jwt_user(&req)?
+        } else {
+            authenticated_user_from_api_key(&req).await?
+        };
+
+        req.extensions_mut().insert(user);
         self.ep.call(req).await
     }
 }

@@ -59,25 +59,38 @@ pub async fn rebalance_budget(
         ));
     }
 
-    let spent_range_end = as_of_date.min(to_date);
-    let spent_so_far = query_scalar::<_, i64>(
-        "SELECT COALESCE(SUM(amount), 0)
-         FROM spending_records
-         WHERE owner_user_id = ?
-           AND date(transacted_at) >= date(?)
-           AND date(transacted_at) <= date(?)",
-    )
-    .bind(&user.user_id)
-    .bind(from_date.format("%Y-%m-%d").to_string())
-    .bind(spent_range_end.format("%Y-%m-%d").to_string())
-    .fetch_one(&data.db)
-    .await
-    .map_err(|e| {
-        Error::from_string(
-            format!("누적 소비 조회 실패: {}", e),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
-    })?;
+    let spent_so_far = match payload.spent_so_far {
+        Some(spent_so_far) => {
+            if spent_so_far < 0 {
+                return Err(Error::from_string(
+                    "spent_so_far는 0 이상이어야 합니다.",
+                    StatusCode::BAD_REQUEST,
+                ));
+            }
+            spent_so_far
+        }
+        None => {
+            let spent_range_end = as_of_date.min(to_date);
+            query_scalar::<_, i64>(
+                "SELECT COALESCE(SUM(amount), 0)
+                 FROM spending_records
+                 WHERE owner_user_id = ?
+                   AND date(transacted_at) >= date(?)
+                   AND date(transacted_at) <= date(?)",
+            )
+            .bind(&user.user_id)
+            .bind(from_date.format("%Y-%m-%d").to_string())
+            .bind(spent_range_end.format("%Y-%m-%d").to_string())
+            .fetch_one(&data.db)
+            .await
+            .map_err(|e| {
+                Error::from_string(
+                    format!("누적 소비 조회 실패: {}", e),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?
+        }
+    };
 
     let remaining_budget = payload.total_budget - spent_so_far;
     let rebalance_start = if as_of_date < from_date {

@@ -89,6 +89,7 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     migrate_spending_records(pool)
         .await
         .map_err(InternalServerError)?;
+    migrate_api_keys(pool).await.map_err(InternalServerError)?;
 
     Ok(())
 }
@@ -282,6 +283,162 @@ async fn create_spending_records_table(pool: &SqlitePool) -> std::result::Result
         r#"
         CREATE INDEX IF NOT EXISTS idx_spending_records_owner_week
         ON spending_records(owner_user_id, week_key)
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn migrate_api_keys(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    if !table_exists(pool, "api_keys").await? {
+        create_api_keys_table(pool).await?;
+        return Ok(());
+    }
+
+    let has_key_lookup = column_exists(pool, "api_keys", "key_lookup").await?;
+    let has_user_role = column_exists(pool, "api_keys", "user_role").await?;
+
+    if has_key_lookup && has_user_role {
+        query(
+            r#"
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_lookup
+            ON api_keys(key_lookup)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+        query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_api_keys_user_id
+            ON api_keys(user_id)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+        return Ok(());
+    }
+
+    query("DROP TABLE IF EXISTS api_keys_new")
+        .execute(pool)
+        .await?;
+    query(
+        r#"
+        CREATE TABLE api_keys_new (
+            api_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            key_lookup TEXT NOT NULL,
+            key_hash TEXT NOT NULL,
+            user_role TEXT NOT NULL DEFAULT 'user',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_used_at DATETIME,
+            revoked_at DATETIME
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    if has_key_lookup && !has_user_role {
+        query(
+            r#"
+            INSERT INTO api_keys_new
+                (api_key_id, user_id, name, key_lookup, key_hash, user_role, created_at, last_used_at, revoked_at)
+            SELECT
+                api_key_id,
+                user_id,
+                name,
+                key_lookup,
+                key_hash,
+                'user',
+                COALESCE(created_at, CURRENT_TIMESTAMP),
+                last_used_at,
+                revoked_at
+            FROM api_keys
+            "#,
+        )
+        .execute(pool)
+        .await?;
+    } else {
+        query(
+            r#"
+            INSERT INTO api_keys_new
+                (api_key_id, user_id, name, key_lookup, key_hash, user_role, created_at, last_used_at, revoked_at)
+            SELECT
+                api_key_id,
+                user_id,
+                name,
+                lower(hex(randomblob(16))),
+                key_hash,
+                'user',
+                COALESCE(created_at, CURRENT_TIMESTAMP),
+                last_used_at,
+                revoked_at
+            FROM api_keys
+            "#,
+        )
+        .execute(pool)
+        .await?;
+    }
+
+    query("DROP TABLE api_keys").execute(pool).await?;
+    query("ALTER TABLE api_keys_new RENAME TO api_keys")
+        .execute(pool)
+        .await?;
+    query(
+        r#"
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_lookup
+        ON api_keys(key_lookup)
+        "#,
+    )
+    .execute(pool)
+    .await?;
+    query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_api_keys_user_id
+        ON api_keys(user_id)
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn create_api_keys_table(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    query(
+        r#"
+        CREATE TABLE IF NOT EXISTS api_keys (
+            api_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            key_lookup TEXT NOT NULL,
+            key_hash TEXT NOT NULL,
+            user_role TEXT NOT NULL DEFAULT 'user',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_used_at DATETIME,
+            revoked_at DATETIME
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    query(
+        r#"
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_lookup
+        ON api_keys(key_lookup)
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_api_keys_user_id
+        ON api_keys(user_id)
         "#,
     )
     .execute(pool)

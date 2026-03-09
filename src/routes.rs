@@ -1,10 +1,13 @@
 pub mod add_user;
 pub mod analyze_card_excel;
+pub mod create_api_key;
 pub mod create_budget_plan;
 pub mod create_spending;
+pub mod delete_api_key;
 pub mod delete_post;
 pub mod delete_spending;
 pub mod get_all_posts;
+pub mod get_api_keys;
 pub mod get_budget_weeks;
 pub mod get_count_with_tags;
 pub mod get_portfolio;

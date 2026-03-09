@@ -32,10 +32,9 @@ Rust + Poem + SQLite로 만든 개인용 CMS API 서버입니다.
 DATABASE_PATH=./data/database.db
 UPLOAD_PATH=.uploads/images
 
-# JWT / API Key
+# JWT
 JWT_ACCESS_SECRET=replace-with-access-secret
 JWT_REFRESH_SECRET=replace-with-refresh-secret
-MACRODROID_API_KEY=replace-with-api-key
 ```
 
 `DATABASE_PATH`, `UPLOAD_PATH`는 절대 경로로 직접 지정해도 됩니다.
@@ -63,8 +62,16 @@ cargo run -q
 
 ### API Key 인증 (`X-API-Key`)
 
-`X-API-Key` 헤더 값이 `MACRODROID_API_KEY`와 일치해야 합니다.
-현재 `/budget/spending` 생성 API(POST)에서 사용됩니다.
+API Key는 유저별로 여러 개 발급할 수 있고, 원문은 발급 시 1회만 반환됩니다.
+DB에는 bcrypt 해시만 저장하며 `name`, `created_at`, `last_used_at`, `revoked_at`를 관리합니다.
+
+인증 규칙은 다음과 같습니다.
+
+- 대부분의 관리/조회 API: JWT(`Authorization`) 사용
+- `POST /budget/spending`: JWT 또는 `X-API-Key` 둘 다 허용
+- API Key 관리 API(`POST /api-keys`, `GET /api-keys`, `DELETE /api-keys/:id`): JWT 필요
+
+`POST /budget/spending`은 request body의 `user_id`를 신뢰하지 않고, 항상 인증 컨텍스트의 `user_id`를 사용합니다.
 
 ## API 개요
 
@@ -86,6 +93,15 @@ CORS preflight 처리.
 
 - `POST /admin/add-user` (JWT)
 신규 사용자 계정 추가(비밀번호 해시 저장).
+
+- `POST /api-keys` (JWT)
+현재 로그인한 유저용 API Key 발급. 원문 API key는 이 응답에서만 반환.
+
+- `GET /api-keys` (JWT)
+현재 로그인한 유저가 발급한 API key 목록 조회.
+
+- `DELETE /api-keys/:id` (JWT)
+현재 로그인한 유저의 API key 폐기(revoke).
 
 ### Posts / Tags (CMS)
 
@@ -147,7 +163,7 @@ CORS preflight 처리.
 - `GET /budget/spending`
 주차별 소비 기록 목록 조회(`week=YYYY-Www`, 미지정 시 현재 주차).
 
-- `POST /budget/spending` (API Key)
+- `POST /budget/spending` (JWT or API Key)
 소비 기록 생성 및 주간 누적/남은 예산 계산.
 
 - `PUT /budget/spending/:record_id`
@@ -172,3 +188,56 @@ cargo test
 ```
 
 현재 테스트는 JWT 생성/검증 기본 동작 중심입니다.
+
+## curl 예시
+
+### 로그인 후 JWT 획득
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/login \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id":"me@example.com","password":"secret"}'
+```
+
+### API Key 발급
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/api-keys \
+  -H "Authorization: $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"macrodroid-main-phone"}'
+```
+
+응답의 `api_key` 값은 이때만 확인할 수 있습니다.
+
+### API Key 목록 조회
+
+```bash
+curl -sS http://127.0.0.1:8080/api-keys \
+  -H "Authorization: $ACCESS_TOKEN"
+```
+
+### API Key 폐기
+
+```bash
+curl -sS -X DELETE http://127.0.0.1:8080/api-keys/1 \
+  -H "Authorization: $ACCESS_TOKEN"
+```
+
+### JWT로 소비 기록 생성
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/budget/spending \
+  -H "Authorization: $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"amount":12000,"merchant":"CU 역삼신웅점","transacted_at":"2026-03-03T12:20:00"}'
+```
+
+### API Key로 소비 기록 생성
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/budget/spending \
+  -H "X-API-Key: $MACRODROID_USER_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"amount":12000,"merchant":"CU 역삼신웅점","transacted_at":"2026-03-03T12:20:00"}'
+```

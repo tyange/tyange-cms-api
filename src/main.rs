@@ -7,15 +7,19 @@ mod utils;
 
 use dotenv::dotenv;
 use middlewares::admin_middleware::AdminOnly;
+use middlewares::api_key_middleware::JwtOrApiKeyAuth;
 use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
 
 use crate::routes::analyze_card_excel::calculate_remaining_weekly_budget;
+use crate::routes::create_api_key::create_api_key_handler;
 use crate::routes::create_budget_plan::create_budget_plan;
 use crate::routes::create_spending::create_spending;
+use crate::routes::delete_api_key::delete_api_key;
 use crate::routes::delete_post::delete_post;
 use crate::routes::delete_spending::delete_spending;
 use crate::routes::get_all_posts::get_all_posts;
+use crate::routes::get_api_keys::get_api_keys;
 use crate::routes::get_budget_weeks::get_budget_weeks;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_portfolio::get_portfolio;
@@ -103,6 +107,11 @@ async fn main() -> Result<(), std::io::Error> {
                 "/admin/posts",
                 get(get_all_posts).with(AdminOnly).with(Auth),
             )
+            .at(
+                "/api-keys",
+                post(create_api_key_handler).get(get_api_keys).with(Auth),
+            )
+            .at("/api-keys/:api_key_id", delete(delete_api_key).with(Auth))
             .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
             .at("/budget/set", post(set_budget).with(Auth))
             .at("/budget/plan", post(create_budget_plan).with(Auth))
@@ -114,7 +123,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/budget/update/:config_id", put(update_budget).with(Auth))
             .at(
                 "/budget/spending",
-                get(get_spending.with(Auth)).post(create_spending.with(Auth)),
+                get(get_spending.with(Auth)).post(create_spending.with(JwtOrApiKeyAuth)),
             )
             .at(
                 "/budget/spending/:record_id",

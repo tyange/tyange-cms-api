@@ -303,6 +303,7 @@ pub struct RemainingWeeklyBudgetResponse {
 #[derive(Debug, Deserialize)]
 pub struct BudgetRebalanceRequest {
     pub total_budget: i64,
+    pub spent_so_far: Option<i64>,
     pub from_date: String,
     pub to_date: String,
     pub as_of_date: String,
@@ -327,4 +328,33 @@ pub struct BudgetRebalanceResponse {
     pub rebalance_from_week: String,
     pub is_overspent: bool,
     pub weeks: Vec<BudgetRebalanceWeekItem>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateApiKeyRequest {
+    pub name: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateApiKeyResponse {
+    pub id: i64,
+    pub name: String,
+    pub api_key: String,
+    pub created_at: String,
+    pub last_used_at: Option<String>,
+    pub revoked_at: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApiKeyResponse {
+    pub id: i64,
+    pub name: String,
+    pub created_at: String,
+    pub last_used_at: Option<String>,
+    pub revoked_at: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApiKeyListResponse {
+    pub api_keys: Vec<ApiKeyResponse>,
 }
