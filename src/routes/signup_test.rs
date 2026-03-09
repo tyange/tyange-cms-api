@@ -1,13 +1,7 @@
 use std::{env, sync::Arc};
 
 use bcrypt::verify;
-use poem::{
-    get,
-    http::StatusCode,
-    post,
-    test::TestClient,
-    Endpoint, EndpointExt, Route,
-};
+use poem::{get, http::StatusCode, post, test::TestClient, Endpoint, EndpointExt, Route};
 use serde_json::json;
 use sqlx::{query_scalar, SqlitePool};
 
@@ -151,14 +145,8 @@ async fn signup_user_can_login_with_email_as_user_id() {
     response.assert_status_is_ok();
     let json = response.json().await;
     json.value().object().get("user_role").assert_string("user");
-    json.value()
-        .object()
-        .get("access_token")
-        .assert_not_null();
-    json.value()
-        .object()
-        .get("refresh_token")
-        .assert_not_null();
+    json.value().object().get("access_token").assert_not_null();
+    json.value().object().get("refresh_token").assert_not_null();
 }
 
 #[tokio::test]
@@ -201,8 +189,16 @@ async fn login_and_me_return_current_user() {
 
     me_response.assert_status_is_ok();
     let me_json = me_response.json().await;
-    me_json.value().object().get("user_id").assert_string("me@example.com");
-    me_json.value().object().get("user_role").assert_string("user");
+    me_json
+        .value()
+        .object()
+        .get("user_id")
+        .assert_string("me@example.com");
+    me_json
+        .value()
+        .object()
+        .get("user_role")
+        .assert_string("user");
 }
 
 #[tokio::test]
@@ -212,7 +208,10 @@ async fn non_admin_still_cannot_use_admin_add_user() {
 
     let response = cli
         .post("/admin/add-user")
-        .header("Authorization", issue_access_token("member@example.com", "user"))
+        .header(
+            "Authorization",
+            issue_access_token("member@example.com", "user"),
+        )
         .body_json(&json!({
             "user_id": "created-by-user@example.com",
             "password": "password123",

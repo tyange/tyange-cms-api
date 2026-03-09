@@ -17,6 +17,7 @@ pub mod get_weekly_config;
 pub mod get_weekly_summary;
 pub mod login;
 pub mod me;
+pub mod rebalance_budget;
 pub mod set_budget;
 pub mod signup;
 pub mod update_budget;

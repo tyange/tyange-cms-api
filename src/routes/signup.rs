@@ -58,7 +58,10 @@ fn validate_email(email: &str) -> Result<(), Error> {
 fn validate_password(password: &str) -> Result<(), Error> {
     if password.len() < MIN_PASSWORD_LENGTH {
         return Err(Error::from_string(
-            format!("비밀번호는 최소 {}자 이상이어야 합니다.", MIN_PASSWORD_LENGTH),
+            format!(
+                "비밀번호는 최소 {}자 이상이어야 합니다.",
+                MIN_PASSWORD_LENGTH
+            ),
             StatusCode::BAD_REQUEST,
         ));
     }

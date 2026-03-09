@@ -261,9 +261,7 @@ async fn create_budget_config_table(pool: &SqlitePool) -> std::result::Result<()
     Ok(())
 }
 
-async fn create_spending_records_table(
-    pool: &SqlitePool,
-) -> std::result::Result<(), sqlx::Error> {
+async fn create_spending_records_table(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
     query(
         r#"
         CREATE TABLE IF NOT EXISTS spending_records (
@@ -292,7 +290,10 @@ async fn create_spending_records_table(
     Ok(())
 }
 
-async fn table_exists(pool: &SqlitePool, table_name: &str) -> std::result::Result<bool, sqlx::Error> {
+async fn table_exists(
+    pool: &SqlitePool,
+    table_name: &str,
+) -> std::result::Result<bool, sqlx::Error> {
     let exists = query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
     )
@@ -312,5 +313,7 @@ async fn column_exists(
         .fetch_all(pool)
         .await?;
 
-    Ok(rows.iter().any(|row| row.get::<String, _>("name") == column_name))
+    Ok(rows
+        .iter()
+        .any(|row| row.get::<String, _>("name") == column_name))
 }

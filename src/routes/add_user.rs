@@ -1,8 +1,8 @@
 use crate::models::{AddUserRequest, AppState, CustomResponse};
 use bcrypt::{hash, DEFAULT_COST};
 use poem::{
-    http::StatusCode,
     handler,
+    http::StatusCode,
     web::{Data, Json},
     Error,
 };
@@ -34,10 +34,9 @@ pub async fn create_user(
     .execute(db)
     .await
     .map_err(|err| match err {
-        SqlxError::Database(db_err) if db_err.is_unique_violation() => Error::from_string(
-            "이미 존재하는 사용자입니다.",
-            StatusCode::CONFLICT,
-        ),
+        SqlxError::Database(db_err) if db_err.is_unique_violation() => {
+            Error::from_string("이미 존재하는 사용자입니다.", StatusCode::CONFLICT)
+        }
         _ => {
             eprintln!("Error adding user: {}", err);
             Error::from_string(
@@ -55,7 +54,13 @@ pub async fn add_user(
     Json(payload): Json<AddUserRequest>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<CustomResponse<()>>, Error> {
-    create_user(&data.db, &payload.user_id, &payload.password, &payload.user_role).await?;
+    create_user(
+        &data.db,
+        &payload.user_id,
+        &payload.password,
+        &payload.user_role,
+    )
+    .await?;
 
     println!("User added successfully: {}", payload.user_id);
     Ok(Json(CustomResponse {

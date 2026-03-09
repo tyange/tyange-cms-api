@@ -299,3 +299,32 @@ pub struct RemainingWeeklyBudgetResponse {
     pub is_overspent: bool,
     pub buckets: Vec<RemainingWeeklyBudgetBucket>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct BudgetRebalanceRequest {
+    pub total_budget: i64,
+    pub from_date: String,
+    pub to_date: String,
+    pub as_of_date: String,
+    pub alert_threshold: Option<f64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BudgetRebalanceWeekItem {
+    pub week_key: String,
+    pub days: u32,
+    pub weekly_limit: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BudgetRebalanceResponse {
+    pub total_budget: i64,
+    pub from_date: String,
+    pub to_date: String,
+    pub as_of_date: String,
+    pub spent_so_far: i64,
+    pub remaining_budget: i64,
+    pub rebalance_from_week: String,
+    pub is_overspent: bool,
+    pub weeks: Vec<BudgetRebalanceWeekItem>,
+}

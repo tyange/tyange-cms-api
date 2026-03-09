@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use sqlx::SqlitePool;
 
-use crate::{
-    db::init_db, models::AppState, routes::get_budget_weeks::build_budget_weeks_response,
-};
+use crate::{db::init_db, models::AppState, routes::get_budget_weeks::build_budget_weeks_response};
 
 #[tokio::test]
 async fn returns_empty_payload_when_no_budget_week_exists() {

@@ -1,11 +1,6 @@
 use std::{env, sync::Arc};
 
-use poem::{
-    delete, post, put,
-    test::TestClient,
-    http::StatusCode,
-    Endpoint, EndpointExt, Route,
-};
+use poem::{delete, http::StatusCode, post, put, test::TestClient, Endpoint, EndpointExt, Route};
 use serde_json::json;
 use sqlx::{query, query_scalar, SqlitePool};
 
@@ -63,7 +58,10 @@ fn create_test_app(state: Arc<AppState>) -> impl Endpoint {
         .at("/post/update/:post_id", put(update_post).with(Auth))
         .at("/post/delete/:post_id", delete(delete_post).with(Auth))
         .at("/admin/add-user", post(add_user).with(AdminOnly).with(Auth))
-        .at("/admin/posts", poem::get(get_all_posts).with(AdminOnly).with(Auth))
+        .at(
+            "/admin/posts",
+            poem::get(get_all_posts).with(AdminOnly).with(Auth),
+        )
         .data(state)
 }
 

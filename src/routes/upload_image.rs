@@ -30,9 +30,10 @@ pub async fn upload_image(
             .and_then(|ext| ext.to_str())
             .unwrap_or("jpg");
 
-        let file_bytes = field.bytes().await.map_err(|e| {
-            Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
-        })?;
+        let file_bytes = field
+            .bytes()
+            .await
+            .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))?;
 
         let upload_base_path =
             env::var("UPLOAD_PATH").unwrap_or_else(|_| ".uploads/images".to_string());
@@ -61,10 +62,7 @@ pub async fn upload_image(
 
         let post_id = params.post_id.clone();
 
-        let image_type = params
-            .image_type
-            .clone()
-            .unwrap_or(String::from("in_post"));
+        let image_type = params.image_type.clone().unwrap_or(String::from("in_post"));
 
         let result = query(
             r#"

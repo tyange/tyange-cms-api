@@ -1,3 +1,4 @@
+mod budget;
 mod db;
 mod middlewares;
 mod models;
@@ -24,6 +25,7 @@ use crate::routes::get_tags_with_category::get_tags_with_category;
 use crate::routes::get_weekly_config::get_weekly_config;
 use crate::routes::get_weekly_summary::{get_weekly_summary, get_weekly_summary_by_key};
 use crate::routes::me::me;
+use crate::routes::rebalance_budget::rebalance_budget;
 use crate::routes::set_budget::set_budget;
 use crate::routes::signup::signup;
 use crate::routes::update_budget::update_budget;
@@ -37,9 +39,7 @@ use poem::{
     delete, endpoint::StaticFilesEndpoint, get, handler, http::StatusCode, listener::TcpListener,
     middleware::Cors, options, post, put, EndpointExt, Response, Route, Server,
 };
-    use routes::{
-        get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post,
-    };
+use routes::{get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post};
 use sqlx::SqlitePool;
 
 #[handler]
@@ -90,16 +90,23 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/tags", get(get_count_with_tags))
             .at("/tags-with-category", get(get_tags_with_category))
             .at("/portfolio", get(get_portfolio))
-            .at("/portfolio/update", put(update_portfolio).with(AdminOnly).with(Auth))
+            .at(
+                "/portfolio/update",
+                put(update_portfolio).with(AdminOnly).with(Auth),
+            )
             .at("/upload-image", post(upload_image).with(Auth))
             .at("/login", post(login))
             .at("/signup", post(signup))
             .at("/me", get(me).with(Auth))
             .at("/admin/add-user", post(add_user).with(AdminOnly).with(Auth))
-            .at("/admin/posts", get(get_all_posts).with(AdminOnly).with(Auth))
+            .at(
+                "/admin/posts",
+                get(get_all_posts).with(AdminOnly).with(Auth),
+            )
             .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
             .at("/budget/set", post(set_budget).with(Auth))
             .at("/budget/plan", post(create_budget_plan).with(Auth))
+            .at("/budget/rebalance", post(rebalance_budget).with(Auth))
             .at(
                 "/budget/card-excel/remaining-weekly-budget",
                 post(calculate_remaining_weekly_budget).with(Auth),
@@ -115,7 +122,10 @@ async fn main() -> Result<(), std::io::Error> {
             )
             .at("/budget/weekly", get(get_weekly_summary).with(Auth))
             .at("/budget/weeks", get(get_budget_weeks).with(Auth))
-            .at("/budget/weekly/:week_key", get(get_weekly_summary_by_key).with(Auth))
+            .at(
+                "/budget/weekly/:week_key",
+                get(get_weekly_summary_by_key).with(Auth),
+            )
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
             .at("/*path", options(options_handler))
     }

@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 use poem::{
     handler,
     http::StatusCode,
@@ -9,6 +9,7 @@ use poem::{
 };
 use sqlx::query;
 
+use crate::budget::{allocate_amounts_by_days, collect_iso_week_days};
 use crate::models::{
     AppState, BudgetPlanRequest, BudgetPlanResponse, BudgetPlanWeekItem, CustomResponse,
 };
@@ -56,49 +57,18 @@ pub async fn create_budget_plan(
         ));
     }
 
-    let mut days_by_week: BTreeMap<String, u32> = BTreeMap::new();
-    let mut cursor = from_date;
-    loop {
-        let iso = cursor.iso_week();
-        let week_key = format!("{}-W{:02}", iso.year(), iso.week());
-        let entry = days_by_week.entry(week_key).or_insert(0);
-        *entry += 1;
+    let days_by_week = collect_iso_week_days(from_date, to_date, from_date)?;
 
-        if cursor == to_date {
-            break;
-        }
-        cursor = cursor.succ_opt().ok_or_else(|| {
-            Error::from_string(
-                "날짜 계산 중 오류가 발생했습니다.",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })?;
-    }
-
-    let total_days: u32 = days_by_week.values().sum();
+    let total_days: u32 = days_by_week.iter().map(|(_, days)| *days).sum();
     let daily_budget = payload.total_budget as f64 / total_days as f64;
-
-    let mut week_items = days_by_week
-        .iter()
-        .map(|(week_key, days)| {
-            let exact = payload.total_budget as f64 * (*days as f64) / (total_days as f64);
-            let base = exact.floor() as i64;
-            (week_key.clone(), *days, base, exact - base as f64)
-        })
-        .collect::<Vec<(String, u32, i64, f64)>>();
-
-    let allocated_base_sum = week_items.iter().map(|(_, _, base, _)| *base).sum::<i64>();
-    let mut remainder = payload.total_budget - allocated_base_sum;
-
-    let mut order = (0..week_items.len()).collect::<Vec<usize>>();
-    order.sort_by(|a, b| week_items[*b].3.total_cmp(&week_items[*a].3));
-    for idx in order {
-        if remainder <= 0 {
-            break;
-        }
-        week_items[idx].2 += 1;
-        remainder -= 1;
-    }
+    let weekly_limits = allocate_amounts_by_days(
+        &days_by_week
+            .iter()
+            .map(|(_, days)| *days)
+            .collect::<Vec<u32>>(),
+        payload.total_budget,
+        false,
+    );
 
     let mut tx = data.db.begin().await.map_err(|e| {
         Error::from_string(
@@ -107,7 +77,7 @@ pub async fn create_budget_plan(
         )
     })?;
 
-    for (week_key, _days, weekly_limit, _frac) in &week_items {
+    for ((week_key, _days), weekly_limit) in days_by_week.iter().zip(weekly_limits.iter()) {
         query(
             "INSERT INTO budget_config (owner_user_id, week_key, weekly_limit, alert_threshold)
              VALUES (?, ?, ?, ?)
@@ -136,9 +106,10 @@ pub async fn create_budget_plan(
         )
     })?;
 
-    let weeks = week_items
+    let weeks = days_by_week
         .into_iter()
-        .map(|(week_key, days, weekly_limit, _frac)| BudgetPlanWeekItem {
+        .zip(weekly_limits.into_iter())
+        .map(|((week_key, days), weekly_limit)| BudgetPlanWeekItem {
             week_key,
             days,
             weekly_limit,

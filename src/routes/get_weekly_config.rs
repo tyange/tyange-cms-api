@@ -34,7 +34,12 @@ pub async fn get_weekly_config(
     .bind(&week_key)
     .fetch_optional(&data.db)
     .await
-    .map_err(|e| Error::from_string(format!("DB 조회 오류: {}", e), StatusCode::INTERNAL_SERVER_ERROR))?;
+    .map_err(|e| {
+        Error::from_string(
+            format!("DB 조회 오류: {}", e),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })?;
 
     if let Some(config) = existing {
         return Ok(Json(config));
@@ -61,7 +66,12 @@ pub async fn get_weekly_config(
     .bind(&week_key)
     .fetch_one(&data.db)
     .await
-    .map_err(|e| Error::from_string(format!("DB 조회 오류: {}", e), StatusCode::INTERNAL_SERVER_ERROR))?;
+    .map_err(|e| {
+        Error::from_string(
+            format!("DB 조회 오류: {}", e),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })?;
 
     Ok(Json(config))
 }

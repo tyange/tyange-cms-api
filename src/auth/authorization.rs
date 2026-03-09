@@ -9,9 +9,9 @@ pub struct AuthenticatedUser {
 }
 
 pub fn current_user(req: &Request) -> Result<&AuthenticatedUser, Error> {
-    req.extensions()
-        .get::<AuthenticatedUser>()
-        .ok_or_else(|| Error::from_string("인증된 사용자 정보가 없습니다.", StatusCode::UNAUTHORIZED))
+    req.extensions().get::<AuthenticatedUser>().ok_or_else(|| {
+        Error::from_string("인증된 사용자 정보가 없습니다.", StatusCode::UNAUTHORIZED)
+    })
 }
 
 pub async fn ensure_post_owner(
@@ -33,7 +33,10 @@ pub async fn ensure_post_owner(
             SqlxError::RowNotFound => {
                 Error::from_string("게시글을 찾을 수 없습니다.", StatusCode::NOT_FOUND)
             }
-            _ => Error::from_string("게시글 작성자 조회에 실패했습니다.", StatusCode::INTERNAL_SERVER_ERROR),
+            _ => Error::from_string(
+                "게시글 작성자 조회에 실패했습니다.",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
         }
     })?;
 
