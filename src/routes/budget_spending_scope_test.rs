@@ -355,6 +355,218 @@ async fn budget_and_spending_are_scoped_per_user() {
 }
 
 #[tokio::test]
+async fn weekly_summary_remaining_uses_projected_remaining_for_normal_week() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("summary-user", "user");
+
+    query(
+        "INSERT INTO budget_config (
+            owner_user_id,
+            week_key,
+            weekly_limit,
+            projected_remaining,
+            alert_threshold
+         ) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind("summary-user")
+    .bind("2026-W10")
+    .bind(500_000)
+    .bind(500_000)
+    .bind(0.85)
+    .execute(&state.db)
+    .await
+    .expect("failed to seed budget_config");
+
+    query(
+        "INSERT INTO spending_records (
+            owner_user_id,
+            amount,
+            merchant,
+            transacted_at,
+            week_key
+         ) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind("summary-user")
+    .bind(100_000)
+    .bind("seed")
+    .bind("2026-03-03 12:00:00")
+    .bind("2026-W10")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed spending_records");
+
+    let response = cli
+        .get("/budget/weekly/2026-W10")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    json.value().object().get("weekly_limit").assert_i64(500_000);
+    json.value()
+        .object()
+        .get("projected_remaining")
+        .assert_i64(500_000);
+    json.value().object().get("total_spent").assert_i64(100_000);
+    json.value().object().get("remaining").assert_i64(400_000);
+}
+
+#[tokio::test]
+async fn weekly_summary_remaining_uses_negative_projected_remaining_without_spending() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("overspent-summary-user", "user");
+
+    query(
+        "INSERT INTO budget_config (
+            owner_user_id,
+            week_key,
+            weekly_limit,
+            projected_remaining,
+            alert_threshold
+         ) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind("overspent-summary-user")
+    .bind("2026-W11")
+    .bind(0)
+    .bind(-67_755)
+    .bind(0.85)
+    .execute(&state.db)
+    .await
+    .expect("failed to seed budget_config");
+
+    let response = cli
+        .get("/budget/weekly/2026-W11")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    json.value().object().get("weekly_limit").assert_i64(0);
+    json.value().object().get("total_spent").assert_i64(0);
+    json.value()
+        .object()
+        .get("projected_remaining")
+        .assert_i64(-67_755);
+    json.value().object().get("remaining").assert_i64(-67_755);
+    json.value().object().get("usage_rate").assert_f64(0.0);
+    json.value().object().get("alert").assert_bool(false);
+}
+
+#[tokio::test]
+async fn weekly_summary_remaining_gets_more_negative_when_overspent_week_has_spending() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("overspent-spending-user", "user");
+
+    query(
+        "INSERT INTO budget_config (
+            owner_user_id,
+            week_key,
+            weekly_limit,
+            projected_remaining,
+            alert_threshold
+         ) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind("overspent-spending-user")
+    .bind("2026-W12")
+    .bind(0)
+    .bind(-67_755)
+    .bind(0.85)
+    .execute(&state.db)
+    .await
+    .expect("failed to seed budget_config");
+
+    query(
+        "INSERT INTO spending_records (
+            owner_user_id,
+            amount,
+            merchant,
+            transacted_at,
+            week_key
+         ) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind("overspent-spending-user")
+    .bind(10_000)
+    .bind("seed")
+    .bind("2026-03-17 12:00:00")
+    .bind("2026-W12")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed spending_records");
+
+    let response = cli
+        .get("/budget/weekly/2026-W12")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    json.value().object().get("weekly_limit").assert_i64(0);
+    json.value().object().get("total_spent").assert_i64(10_000);
+    json.value()
+        .object()
+        .get("projected_remaining")
+        .assert_i64(-67_755);
+    json.value().object().get("remaining").assert_i64(-77_755);
+    json.value().object().get("usage_rate").assert_f64(0.0);
+    json.value().object().get("alert").assert_bool(false);
+}
+
+#[tokio::test]
+async fn create_spending_response_remaining_uses_projected_remaining_for_overspent_week() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("overspent-create-user", "user");
+    let current_week = current_iso_week_key();
+
+    query(
+        "INSERT INTO budget_config (
+            owner_user_id,
+            week_key,
+            weekly_limit,
+            projected_remaining,
+            alert_threshold
+         ) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind("overspent-create-user")
+    .bind(&current_week)
+    .bind(0)
+    .bind(-67_755)
+    .bind(0.85)
+    .execute(&state.db)
+    .await
+    .expect("failed to seed budget_config");
+
+    let response = cli
+        .post("/budget/spending")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "amount": 10_000,
+            "merchant": "late expense",
+            "transacted_at": today_transacted_at()
+        }))
+        .send()
+        .await;
+    response.assert_status(StatusCode::CREATED);
+
+    let json = response.json().await;
+    json.value().object().get("weekly_limit").assert_i64(0);
+    json.value().object().get("weekly_total").assert_i64(10_000);
+    json.value().object().get("remaining").assert_i64(-77_755);
+    json.value().object().get("alert").assert_bool(false);
+
+    assert_eq!(
+        projected_remaining_for_owner(&state, "overspent-create-user", &current_week).await,
+        -67_755
+    );
+}
+
+#[tokio::test]
 async fn update_and_delete_require_record_owner_and_budget_owner() {
     let state = create_test_state().await;
     let cli = TestClient::new(create_budget_app(state.clone()));
@@ -1107,7 +1319,7 @@ async fn weekly_summary_by_key_returns_projected_remaining_after_rebalance() {
         .assert_string("2026-W13");
     json.value().object().get("weekly_limit").assert_i64(0);
     json.value().object().get("total_spent").assert_i64(150_000);
-    json.value().object().get("remaining").assert_i64(-150_000);
+    json.value().object().get("remaining").assert_i64(-168_182);
     json.value()
         .object()
         .get("projected_remaining")

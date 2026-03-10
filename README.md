@@ -165,6 +165,7 @@ CORS preflight 처리.
 
 - `POST /budget/spending` (JWT or API Key)
 소비 기록 생성 및 주간 누적/남은 예산 계산.
+응답의 `remaining`은 저장된 `projected_remaining - weekly_total` 기준이며, 소비 생성 시 `projected_remaining` 자체를 다시 쓰지는 않습니다.
 
 - `PUT /budget/spending/:record_id`
 소비 기록 수정.
@@ -174,6 +175,7 @@ CORS preflight 처리.
 
 - `GET /budget/weekly`
 현재 주차 예산 요약(총지출/잔여/사용률/알림) 조회.
+여기서 `remaining`은 `weekly_limit`이 아니라 저장된 `projected_remaining - total_spent` 의미입니다. `usage_rate`와 `alert`는 기존처럼 `weekly_limit` 기준을 유지합니다.
 
 - `GET /budget/weeks`
 예산이 등록된 주차 목록 조회(`weeks`, `min_week`, `max_week`).

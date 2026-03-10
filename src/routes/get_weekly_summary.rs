@@ -98,7 +98,7 @@ async fn build_weekly_summary(
         )
     })?;
 
-    let remaining = budget.weekly_limit - aggregate.total_spent;
+    let remaining = budget.projected_remaining - aggregate.total_spent;
     let usage_rate_raw = if budget.weekly_limit > 0 {
         aggregate.total_spent as f64 / budget.weekly_limit as f64
     } else {

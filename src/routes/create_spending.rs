@@ -17,6 +17,7 @@ use tyange_cms_api::auth::authorization::current_user;
 #[derive(FromRow)]
 struct ActiveBudget {
     weekly_limit: i64,
+    projected_remaining: i64,
     alert_threshold: f64,
 }
 
@@ -48,7 +49,7 @@ pub async fn create_spending(
     let week_key = iso_week_key_from_datetime(&transacted_at);
 
     let budget = query_as::<_, ActiveBudget>(
-        "SELECT weekly_limit, alert_threshold
+        "SELECT weekly_limit, projected_remaining, alert_threshold
          FROM budget_config
          WHERE owner_user_id = ? AND week_key = ?
          LIMIT 1",
@@ -108,7 +109,7 @@ pub async fn create_spending(
     })?
     .weekly_total;
 
-    let remaining = budget.weekly_limit - weekly_total;
+    let remaining = budget.projected_remaining - weekly_total;
     let usage_rate = if budget.weekly_limit > 0 {
         weekly_total as f64 / budget.weekly_limit as f64
     } else {
