@@ -79,14 +79,22 @@ pub async fn create_budget_plan(
 
     for ((week_key, _days), weekly_limit) in days_by_week.iter().zip(weekly_limits.iter()) {
         query(
-            "INSERT INTO budget_config (owner_user_id, week_key, weekly_limit, alert_threshold)
-             VALUES (?, ?, ?, ?)
+            "INSERT INTO budget_config (
+                 owner_user_id,
+                 week_key,
+                 weekly_limit,
+                 projected_remaining,
+                 alert_threshold
+             )
+             VALUES (?, ?, ?, ?, ?)
              ON CONFLICT(owner_user_id, week_key) DO UPDATE SET
                  weekly_limit = excluded.weekly_limit,
+                 projected_remaining = excluded.projected_remaining,
                  alert_threshold = excluded.alert_threshold",
         )
         .bind(&user.user_id)
         .bind(week_key)
+        .bind(*weekly_limit)
         .bind(*weekly_limit)
         .bind(alert_threshold)
         .execute(&mut *tx)

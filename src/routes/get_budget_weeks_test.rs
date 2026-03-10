@@ -29,11 +29,17 @@ async fn returns_sorted_weeks_with_min_and_max() {
     init_db(&db).await.expect("failed to init db");
 
     sqlx::query(
-        "INSERT INTO budget_config (owner_user_id, week_key, weekly_limit, alert_threshold)
-         VALUES ('user-1', '2026-W12', 500000, 0.85),
-                ('user-1', '2026-W10', 500000, 0.85),
-                ('user-1', '2025-W52', 500000, 0.85),
-                ('user-2', '2026-W09', 500000, 0.85)",
+        "INSERT INTO budget_config (
+             owner_user_id,
+             week_key,
+             weekly_limit,
+             projected_remaining,
+             alert_threshold
+         )
+         VALUES ('user-1', '2026-W12', 500000, 500000, 0.85),
+                ('user-1', '2026-W10', 500000, 500000, 0.85),
+                ('user-1', '2025-W52', 500000, 500000, 0.85),
+                ('user-2', '2026-W09', 500000, 500000, 0.85)",
     )
     .execute(&db)
     .await

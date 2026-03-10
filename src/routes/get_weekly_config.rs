@@ -26,7 +26,7 @@ pub async fn get_weekly_config(
     );
 
     let existing = query_as::<_, WeeklyConfigResponse>(
-        "SELECT config_id, week_key, weekly_limit, alert_threshold
+        "SELECT config_id, week_key, weekly_limit, projected_remaining, alert_threshold
          FROM budget_config
          WHERE owner_user_id = ? AND week_key = ?",
     )
@@ -45,20 +45,23 @@ pub async fn get_weekly_config(
         return Ok(Json(config));
     }
 
-    sqlx::query("INSERT INTO budget_config (owner_user_id, week_key) VALUES (?, ?)")
-        .bind(&user.user_id)
-        .bind(&week_key)
-        .execute(&data.db)
-        .await
-        .map_err(|e| {
-            Error::from_string(
-                format!("DB 생성 오류: {}", e),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })?;
+    sqlx::query(
+        "INSERT INTO budget_config (owner_user_id, week_key, projected_remaining)
+         VALUES (?, ?, 500000)",
+    )
+    .bind(&user.user_id)
+    .bind(&week_key)
+    .execute(&data.db)
+    .await
+    .map_err(|e| {
+        Error::from_string(
+            format!("DB 생성 오류: {}", e),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })?;
 
     let config = query_as::<_, WeeklyConfigResponse>(
-        "SELECT config_id, week_key, weekly_limit, alert_threshold
+        "SELECT config_id, week_key, weekly_limit, projected_remaining, alert_threshold
          FROM budget_config
          WHERE owner_user_id = ? AND week_key = ?",
     )

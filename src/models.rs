@@ -190,6 +190,7 @@ pub struct WeeklyConfigResponse {
     pub config_id: u32,
     pub week_key: String,
     pub weekly_limit: u32,
+    pub projected_remaining: i64,
     pub alert_threshold: f64,
 }
 
@@ -242,6 +243,7 @@ pub struct WeeklySummaryResponse {
     pub weekly_limit: i64,
     pub total_spent: i64,
     pub remaining: i64,
+    pub projected_remaining: i64,
     pub usage_rate: f64,
     pub alert: bool,
     pub record_count: i64,
@@ -315,6 +317,7 @@ pub struct BudgetRebalanceWeekItem {
     pub week_key: String,
     pub days: u32,
     pub weekly_limit: i64,
+    pub projected_remaining: i64,
 }
 
 #[derive(Debug, Serialize)]

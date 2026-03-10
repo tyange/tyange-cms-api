@@ -17,6 +17,7 @@ use tyange_cms_api::auth::authorization::current_user;
 #[derive(FromRow)]
 struct ActiveBudget {
     weekly_limit: i64,
+    projected_remaining: i64,
     alert_threshold: f64,
 }
 
@@ -57,7 +58,7 @@ async fn build_weekly_summary(
     owner_user_id: &str,
 ) -> Result<Json<WeeklySummaryResponse>, Error> {
     let budget = query_as::<_, ActiveBudget>(
-        "SELECT weekly_limit, alert_threshold
+        "SELECT weekly_limit, projected_remaining, alert_threshold
          FROM budget_config
          WHERE owner_user_id = ? AND week_key = ?
          LIMIT 1",
@@ -110,6 +111,7 @@ async fn build_weekly_summary(
         weekly_limit: budget.weekly_limit,
         total_spent: aggregate.total_spent,
         remaining,
+        projected_remaining: budget.projected_remaining,
         usage_rate,
         alert: usage_rate_raw >= budget.alert_threshold,
         record_count: aggregate.record_count,

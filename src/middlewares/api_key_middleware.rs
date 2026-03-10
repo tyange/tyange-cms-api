@@ -1,10 +1,8 @@
 use poem::{http::StatusCode, Endpoint, Error, Middleware, Request};
 use std::sync::Arc;
-use tyange_cms_api::{
-    auth::{
-        api_key::{find_active_api_key_by_raw_key, touch_api_key_last_used},
-        authorization::AuthenticatedUser,
-    },
+use tyange_cms_api::auth::{
+    api_key::{find_active_api_key_by_raw_key, touch_api_key_last_used},
+    authorization::AuthenticatedUser,
 };
 
 use crate::{middlewares::auth_middleware::require_jwt_user, models::AppState};

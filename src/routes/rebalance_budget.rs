@@ -10,7 +10,10 @@ use poem::{
 use sqlx::{query, query_scalar};
 
 use crate::{
-    budget::{allocate_amounts_by_days, collect_iso_week_days, iso_week_key_from_date},
+    budget::{
+        allocate_amounts_by_days, allocate_signed_amounts_by_days, collect_iso_week_days,
+        iso_week_key_from_date,
+    },
     models::{
         AppState, BudgetRebalanceRequest, BudgetRebalanceResponse, BudgetRebalanceWeekItem,
         CustomResponse,
@@ -109,6 +112,13 @@ pub async fn rebalance_budget(
         remaining_budget,
         true,
     );
+    let projected_remaining = allocate_signed_amounts_by_days(
+        &days_by_week
+            .iter()
+            .map(|(_, days)| *days)
+            .collect::<Vec<u32>>(),
+        remaining_budget,
+    );
 
     let mut tx = data.db.begin().await.map_err(|e| {
         Error::from_string(
@@ -117,18 +127,30 @@ pub async fn rebalance_budget(
         )
     })?;
 
-    // Overspent 상태는 응답으로 유지하되, 미래 주차에 음수 한도를 저장하지 않도록 0으로 고정한다.
-    for ((week_key, _days), weekly_limit) in days_by_week.iter().zip(weekly_limits.iter()) {
+    // 저장용 한도는 0 이상으로 유지하고, 표시용 잔여 예산은 별도 컬럼에 보존한다.
+    for (((week_key, _days), weekly_limit), projected_remaining) in days_by_week
+        .iter()
+        .zip(weekly_limits.iter())
+        .zip(projected_remaining.iter())
+    {
         query(
-            "INSERT INTO budget_config (owner_user_id, week_key, weekly_limit, alert_threshold)
-             VALUES (?, ?, ?, ?)
+            "INSERT INTO budget_config (
+                 owner_user_id,
+                 week_key,
+                 weekly_limit,
+                 projected_remaining,
+                 alert_threshold
+             )
+             VALUES (?, ?, ?, ?, ?)
              ON CONFLICT(owner_user_id, week_key) DO UPDATE SET
                  weekly_limit = excluded.weekly_limit,
+                 projected_remaining = excluded.projected_remaining,
                  alert_threshold = excluded.alert_threshold",
         )
         .bind(&user.user_id)
         .bind(week_key)
         .bind(*weekly_limit)
+        .bind(*projected_remaining)
         .bind(alert_threshold)
         .execute(&mut *tx)
         .await
@@ -150,11 +172,15 @@ pub async fn rebalance_budget(
     let weeks = days_by_week
         .into_iter()
         .zip(weekly_limits.into_iter())
-        .map(|((week_key, days), weekly_limit)| BudgetRebalanceWeekItem {
-            week_key,
-            days,
-            weekly_limit,
-        })
+        .zip(projected_remaining.into_iter())
+        .map(
+            |(((week_key, days), weekly_limit), projected_remaining)| BudgetRebalanceWeekItem {
+                week_key,
+                days,
+                weekly_limit,
+                projected_remaining,
+            },
+        )
         .collect::<Vec<BudgetRebalanceWeekItem>>();
 
     Ok(Json(CustomResponse {

@@ -12,12 +12,20 @@ use crate::{
     middlewares::auth_middleware::Auth,
     models::AppState,
     routes::{
-        add_user::create_user, create_api_key::create_api_key_handler,
-        create_budget_plan::create_budget_plan, create_spending::create_spending,
-        delete_api_key::delete_api_key, delete_spending::delete_spending,
-        get_api_keys::get_api_keys, get_budget_weeks::get_budget_weeks, get_spending::get_spending,
-        get_weekly_config::get_weekly_config, get_weekly_summary::get_weekly_summary,
-        rebalance_budget::rebalance_budget, set_budget::set_budget, update_budget::update_budget,
+        add_user::create_user,
+        create_api_key::create_api_key_handler,
+        create_budget_plan::create_budget_plan,
+        create_spending::create_spending,
+        delete_api_key::delete_api_key,
+        delete_spending::delete_spending,
+        get_api_keys::get_api_keys,
+        get_budget_weeks::get_budget_weeks,
+        get_spending::get_spending,
+        get_weekly_config::get_weekly_config,
+        get_weekly_summary::{get_weekly_summary, get_weekly_summary_by_key},
+        rebalance_budget::rebalance_budget,
+        set_budget::set_budget,
+        update_budget::update_budget,
         update_spending::update_spending,
     },
     utils::current_iso_week_key,
@@ -56,6 +64,10 @@ fn create_budget_app(state: Arc<AppState>) -> impl Endpoint {
             put(update_spending).delete(delete_spending).with(Auth),
         )
         .at("/budget/weekly", get(get_weekly_summary).with(Auth))
+        .at(
+            "/budget/weekly/:week_key",
+            get(get_weekly_summary_by_key).with(Auth),
+        )
         .at("/budget/weeks", get(get_budget_weeks).with(Auth))
         .data(state)
 }
@@ -77,6 +89,21 @@ async fn weekly_limit_for_owner(state: &Arc<AppState>, owner_user_id: &str, week
         .fetch_one(&state.db)
         .await
         .expect("failed to fetch weekly_limit")
+}
+
+async fn projected_remaining_for_owner(
+    state: &Arc<AppState>,
+    owner_user_id: &str,
+    week_key: &str,
+) -> i64 {
+    query_scalar(
+        "SELECT projected_remaining FROM budget_config WHERE owner_user_id = ? AND week_key = ?",
+    )
+    .bind(owner_user_id)
+    .bind(week_key)
+    .fetch_one(&state.db)
+    .await
+    .expect("failed to fetch projected_remaining")
 }
 
 #[tokio::test]
@@ -261,6 +288,11 @@ async fn budget_and_spending_are_scoped_per_user() {
     user1_json
         .value()
         .object()
+        .get("projected_remaining")
+        .assert_i64(1000);
+    user1_json
+        .value()
+        .object()
         .get("record_count")
         .assert_i64(1);
 
@@ -286,6 +318,11 @@ async fn budget_and_spending_are_scoped_per_user() {
         .object()
         .get("remaining")
         .assert_i64(1750);
+    user2_json
+        .value()
+        .object()
+        .get("projected_remaining")
+        .assert_i64(2000);
     user2_json
         .value()
         .object()
@@ -450,6 +487,11 @@ async fn rebalance_updates_remaining_weeks_from_as_of_week() {
         .get("weekly_limit")
         .assert_i64(488_095);
     weeks
+        .get(0)
+        .object()
+        .get("projected_remaining")
+        .assert_i64(488_095);
+    weeks
         .get(1)
         .object()
         .get("week_key")
@@ -458,6 +500,11 @@ async fn rebalance_updates_remaining_weeks_from_as_of_week() {
         .get(1)
         .object()
         .get("weekly_limit")
+        .assert_i64(683_334);
+    weeks
+        .get(1)
+        .object()
+        .get("projected_remaining")
         .assert_i64(683_334);
     weeks
         .get(2)
@@ -470,6 +517,11 @@ async fn rebalance_updates_remaining_weeks_from_as_of_week() {
         .get("weekly_limit")
         .assert_i64(683_333);
     weeks
+        .get(2)
+        .object()
+        .get("projected_remaining")
+        .assert_i64(683_333);
+    weeks
         .get(3)
         .object()
         .get("week_key")
@@ -478,6 +530,11 @@ async fn rebalance_updates_remaining_weeks_from_as_of_week() {
         .get(3)
         .object()
         .get("weekly_limit")
+        .assert_i64(195_238);
+    weeks
+        .get(3)
+        .object()
+        .get("projected_remaining")
         .assert_i64(195_238);
 
     assert_eq!(
@@ -783,8 +840,14 @@ async fn rebalance_preserves_past_weeks_and_updates_remaining_weeks_only() {
     let token = issue_access_token("history-user", "user");
 
     query(
-        "INSERT INTO budget_config (owner_user_id, week_key, weekly_limit, alert_threshold)
-         VALUES (?, '2026-W13', 123456, 0.8)",
+        "INSERT INTO budget_config (
+             owner_user_id,
+             week_key,
+             weekly_limit,
+             projected_remaining,
+             alert_threshold
+         )
+         VALUES (?, '2026-W13', 123456, 123456, 0.8)",
     )
     .bind("history-user")
     .execute(&state.db)
@@ -792,9 +855,15 @@ async fn rebalance_preserves_past_weeks_and_updates_remaining_weeks_only() {
     .expect("failed to insert historical budget");
 
     query(
-        "INSERT INTO budget_config (owner_user_id, week_key, weekly_limit, alert_threshold)
-         VALUES (?, '2026-W14', 1, 0.8),
-                (?, '2026-W15', 1, 0.8)",
+        "INSERT INTO budget_config (
+             owner_user_id,
+             week_key,
+             weekly_limit,
+             projected_remaining,
+             alert_threshold
+         )
+         VALUES (?, '2026-W14', 1, 1, 0.8),
+                (?, '2026-W15', 1, 1, 0.8)",
     )
     .bind("history-user")
     .bind("history-user")
@@ -866,6 +935,11 @@ async fn rebalance_before_period_starts_behaves_like_full_plan() {
         .get("weekly_limit")
         .assert_i64(350_000);
     weeks
+        .get(0)
+        .object()
+        .get("projected_remaining")
+        .assert_i64(350_000);
+    weeks
         .get(1)
         .object()
         .get("week_key")
@@ -874,6 +948,11 @@ async fn rebalance_before_period_starts_behaves_like_full_plan() {
         .get(1)
         .object()
         .get("weekly_limit")
+        .assert_i64(350_000);
+    weeks
+        .get(1)
+        .object()
+        .get("projected_remaining")
         .assert_i64(350_000);
 }
 
@@ -944,6 +1023,16 @@ async fn rebalance_clamps_saved_limits_to_zero_when_remaining_budget_is_negative
     let weeks = data.get("weeks").array();
     weeks.get(0).object().get("weekly_limit").assert_i64(0);
     weeks.get(1).object().get("weekly_limit").assert_i64(0);
+    weeks
+        .get(0)
+        .object()
+        .get("projected_remaining")
+        .assert_i64(-18_182);
+    weeks
+        .get(1)
+        .object()
+        .get("projected_remaining")
+        .assert_i64(-31_818);
 
     assert_eq!(
         weekly_limit_for_owner(&state, "overspent-user", "2026-W13").await,
@@ -953,4 +1042,74 @@ async fn rebalance_clamps_saved_limits_to_zero_when_remaining_budget_is_negative
         weekly_limit_for_owner(&state, "overspent-user", "2026-W14").await,
         0
     );
+    assert_eq!(
+        projected_remaining_for_owner(&state, "overspent-user", "2026-W13").await,
+        -18_182
+    );
+    assert_eq!(
+        projected_remaining_for_owner(&state, "overspent-user", "2026-W14").await,
+        -31_818
+    );
+}
+
+#[tokio::test]
+async fn weekly_summary_by_key_returns_projected_remaining_after_rebalance() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state));
+    let token = issue_access_token("weekly-summary-user", "user");
+
+    cli.post("/budget/plan")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 100_000,
+            "from_date": "2026-03-23",
+            "to_date": "2026-04-05",
+            "alert_threshold": 0.85
+        }))
+        .send()
+        .await
+        .assert_status_is_ok();
+
+    cli.post("/budget/spending")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "amount": 150_000,
+            "merchant": "overspent",
+            "transacted_at": "2026-03-25T12:00:00"
+        }))
+        .send()
+        .await
+        .assert_status(StatusCode::CREATED);
+
+    cli.post("/budget/rebalance")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 100_000,
+            "from_date": "2026-03-23",
+            "to_date": "2026-04-05",
+            "as_of_date": "2026-03-26"
+        }))
+        .send()
+        .await
+        .assert_status_is_ok();
+
+    let response = cli
+        .get("/budget/weekly/2026-W13")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    json.value()
+        .object()
+        .get("week_key")
+        .assert_string("2026-W13");
+    json.value().object().get("weekly_limit").assert_i64(0);
+    json.value().object().get("total_spent").assert_i64(150_000);
+    json.value().object().get("remaining").assert_i64(-150_000);
+    json.value()
+        .object()
+        .get("projected_remaining")
+        .assert_i64(-18_182);
 }

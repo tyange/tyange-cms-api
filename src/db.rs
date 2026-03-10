@@ -110,6 +110,7 @@ async fn migrate_budget_config(pool: &SqlitePool) -> std::result::Result<(), sql
             owner_user_id TEXT NOT NULL,
             week_key TEXT NOT NULL,
             weekly_limit INTEGER NOT NULL DEFAULT 500000,
+            projected_remaining INTEGER NOT NULL DEFAULT 0,
             alert_threshold REAL NOT NULL DEFAULT 0.85,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(owner_user_id, week_key)
@@ -119,32 +120,77 @@ async fn migrate_budget_config(pool: &SqlitePool) -> std::result::Result<(), sql
     .execute(pool)
     .await?;
 
-    if column_exists(pool, "budget_config", "owner_user_id").await? {
-        query(
+    let has_owner_user_id = column_exists(pool, "budget_config", "owner_user_id").await?;
+    let has_projected_remaining =
+        column_exists(pool, "budget_config", "projected_remaining").await?;
+
+    if has_owner_user_id {
+        let projected_remaining_select = if has_projected_remaining {
+            "COALESCE(projected_remaining, weekly_limit)"
+        } else {
+            "weekly_limit"
+        };
+        let insert_sql = format!(
             r#"
             INSERT INTO budget_config_new
-                (config_id, owner_user_id, week_key, weekly_limit, alert_threshold, created_at)
+                (
+                    config_id,
+                    owner_user_id,
+                    week_key,
+                    weekly_limit,
+                    projected_remaining,
+                    alert_threshold,
+                    created_at
+                )
             SELECT
                 config_id,
                 COALESCE(owner_user_id, 'admin'),
                 week_key,
                 weekly_limit,
+                {projected_remaining_select},
                 alert_threshold,
                 created_at
             FROM budget_config
-            "#,
-        )
-        .execute(pool)
-        .await?;
+            "#
+        );
+        query(&insert_sql).execute(pool).await?;
+
+        if has_projected_remaining {
+            query(
+                r#"
+                UPDATE budget_config_new
+                SET projected_remaining = (
+                    SELECT COALESCE(old.projected_remaining, old.weekly_limit)
+                    FROM budget_config AS old
+                    WHERE old.config_id = budget_config_new.config_id
+                )
+                "#,
+            )
+            .execute(pool)
+            .await?;
+        } else {
+            query("UPDATE budget_config_new SET projected_remaining = weekly_limit")
+                .execute(pool)
+                .await?;
+        }
     } else {
         query(
             r#"
             INSERT INTO budget_config_new
-                (config_id, owner_user_id, week_key, weekly_limit, alert_threshold, created_at)
+                (
+                    config_id,
+                    owner_user_id,
+                    week_key,
+                    weekly_limit,
+                    projected_remaining,
+                    alert_threshold,
+                    created_at
+                )
             SELECT
                 config_id,
                 'admin',
                 week_key,
+                weekly_limit,
                 weekly_limit,
                 alert_threshold,
                 created_at
@@ -250,6 +296,7 @@ async fn create_budget_config_table(pool: &SqlitePool) -> std::result::Result<()
             owner_user_id TEXT NOT NULL,
             week_key TEXT NOT NULL,
             weekly_limit INTEGER NOT NULL DEFAULT 500000,
+            projected_remaining INTEGER NOT NULL DEFAULT 0,
             alert_threshold REAL NOT NULL DEFAULT 0.85,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(owner_user_id, week_key)

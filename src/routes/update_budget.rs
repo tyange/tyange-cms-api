@@ -21,10 +21,11 @@ pub async fn update_budget(
     let user = current_user(req)?;
     let updated = query(
         "UPDATE budget_config
-         SET weekly_limit = ?, alert_threshold = ?
+         SET weekly_limit = ?, projected_remaining = ?, alert_threshold = ?
          WHERE config_id = ? AND owner_user_id = ?",
     )
     .bind(payload.weekly_limit)
+    .bind(i64::from(payload.weekly_limit))
     .bind(payload.alert_threshold)
     .bind(config_id)
     .bind(&user.user_id)

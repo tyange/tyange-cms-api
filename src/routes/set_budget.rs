@@ -27,15 +27,23 @@ pub async fn set_budget(
     );
 
     query(
-        "INSERT INTO budget_config (owner_user_id, week_key, weekly_limit, alert_threshold)
-         VALUES (?, ?, ?, ?)
+        "INSERT INTO budget_config (
+             owner_user_id,
+             week_key,
+             weekly_limit,
+             projected_remaining,
+             alert_threshold
+         )
+         VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(owner_user_id, week_key) DO UPDATE SET
              weekly_limit = excluded.weekly_limit,
+             projected_remaining = excluded.projected_remaining,
              alert_threshold = excluded.alert_threshold",
     )
     .bind(&user.user_id)
     .bind(&week_key)
     .bind(payload.weekly_limit)
+    .bind(i64::from(payload.weekly_limit))
     .bind(payload.alert_threshold)
     .execute(&data.db)
     .await

@@ -89,11 +89,24 @@ pub fn allocate_amounts_by_days(
     items.into_iter().map(|(amount, _)| amount).collect()
 }
 
+pub fn allocate_signed_amounts_by_days(day_counts: &[u32], total_budget: i64) -> Vec<i64> {
+    if total_budget == 0 {
+        return vec![0; day_counts.len()];
+    }
+
+    let allocated = allocate_amounts_by_days(day_counts, total_budget.saturating_abs(), false);
+    if total_budget < 0 {
+        allocated.into_iter().map(|amount| -amount).collect()
+    } else {
+        allocated
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
 
-    use super::{allocate_amounts_by_days, collect_iso_week_days};
+    use super::{allocate_amounts_by_days, allocate_signed_amounts_by_days, collect_iso_week_days};
 
     #[test]
     fn allocates_remainder_by_fractional_days() {
@@ -107,6 +120,13 @@ mod tests {
         let allocated = allocate_amounts_by_days(&[3, 7], -50_000, true);
 
         assert_eq!(allocated, vec![0, 0]);
+    }
+
+    #[test]
+    fn allocates_negative_amounts_by_days() {
+        let allocated = allocate_signed_amounts_by_days(&[3, 7], -50_000);
+
+        assert_eq!(allocated, vec![-15_000, -35_000]);
     }
 
     #[test]
