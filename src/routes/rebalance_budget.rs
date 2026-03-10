@@ -1,23 +1,16 @@
 use std::sync::Arc;
 
-use chrono::NaiveDate;
 use poem::{
     handler,
     http::StatusCode,
     web::{Data, Json},
     Error, Request,
 };
-use sqlx::{query, query_scalar};
+use sqlx::query;
 
 use crate::{
-    budget::{
-        allocate_amounts_by_days, allocate_signed_amounts_by_days, collect_iso_week_days,
-        iso_week_key_from_date,
-    },
-    models::{
-        AppState, BudgetRebalanceRequest, BudgetRebalanceResponse, BudgetRebalanceWeekItem,
-        CustomResponse,
-    },
+    budget_periods::{format_naive_date, parse_naive_date, sum_spending_for_period},
+    models::{AppState, BudgetRebalanceRequest, BudgetRebalanceResponse, CustomResponse},
 };
 use tyange_cms_api::auth::authorization::current_user;
 
@@ -36,9 +29,12 @@ pub async fn rebalance_budget(
         ));
     }
 
-    let from_date = parse_naive_date(&payload.from_date, "from_date")?;
-    let to_date = parse_naive_date(&payload.to_date, "to_date")?;
-    let as_of_date = parse_naive_date(&payload.as_of_date, "as_of_date")?;
+    let from_date = parse_naive_date(&payload.from_date, "from_date")
+        .map_err(|message| Error::from_string(message, StatusCode::BAD_REQUEST))?;
+    let to_date = parse_naive_date(&payload.to_date, "to_date")
+        .map_err(|message| Error::from_string(message, StatusCode::BAD_REQUEST))?;
+    let as_of_date = parse_naive_date(&payload.as_of_date, "as_of_date")
+        .map_err(|message| Error::from_string(message, StatusCode::BAD_REQUEST))?;
 
     if to_date < from_date {
         return Err(Error::from_string(
@@ -62,29 +58,31 @@ pub async fn rebalance_budget(
         ));
     }
 
+    let from_date_text = format_naive_date(from_date);
+    let to_date_text = format_naive_date(to_date);
+    let as_of_date_text = format_naive_date(as_of_date);
     let spent_so_far = match payload.spent_so_far {
-        Some(spent_so_far) => {
-            if spent_so_far < 0 {
+        Some(value) => {
+            if value < 0 {
                 return Err(Error::from_string(
                     "spent_so_far는 0 이상이어야 합니다.",
                     StatusCode::BAD_REQUEST,
                 ));
             }
-            spent_so_far
+            value
         }
         None => {
-            let spent_range_end = as_of_date.min(to_date);
-            query_scalar::<_, i64>(
-                "SELECT COALESCE(SUM(amount), 0)
-                 FROM spending_records
-                 WHERE owner_user_id = ?
-                   AND date(transacted_at) >= date(?)
-                   AND date(transacted_at) <= date(?)",
+            let spent_end = if as_of_date < from_date {
+                from_date
+            } else {
+                as_of_date
+            };
+            sum_spending_for_period(
+                &data.db,
+                &user.user_id,
+                &from_date_text,
+                &format_naive_date(spent_end),
             )
-            .bind(&user.user_id)
-            .bind(from_date.format("%Y-%m-%d").to_string())
-            .bind(spent_range_end.format("%Y-%m-%d").to_string())
-            .fetch_one(&data.db)
             .await
             .map_err(|e| {
                 Error::from_string(
@@ -96,117 +94,43 @@ pub async fn rebalance_budget(
     };
 
     let remaining_budget = payload.total_budget - spent_so_far;
-    let rebalance_start = if as_of_date < from_date {
-        from_date
-    } else {
-        as_of_date
-    };
-    let rebalance_from_week = iso_week_key_from_date(rebalance_start);
-
-    let days_by_week = collect_iso_week_days(from_date, to_date, rebalance_start)?;
-    let weekly_limits = allocate_amounts_by_days(
-        &days_by_week
-            .iter()
-            .map(|(_, days)| *days)
-            .collect::<Vec<u32>>(),
-        remaining_budget,
-        true,
-    );
-    let projected_remaining = allocate_signed_amounts_by_days(
-        &days_by_week
-            .iter()
-            .map(|(_, days)| *days)
-            .collect::<Vec<u32>>(),
-        remaining_budget,
-    );
-
-    let mut tx = data.db.begin().await.map_err(|e| {
+    let inserted = query(
+        "INSERT INTO budget_periods (
+             owner_user_id,
+             total_budget,
+             from_date,
+             to_date,
+             alert_threshold
+         )
+         VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&user.user_id)
+    .bind(payload.total_budget)
+    .bind(&from_date_text)
+    .bind(&to_date_text)
+    .bind(alert_threshold)
+    .execute(&data.db)
+    .await
+    .map_err(|e| {
         Error::from_string(
-            format!("트랜잭션 시작 실패: {}", e),
+            format!("재계산 예산 저장 실패: {}", e),
             StatusCode::INTERNAL_SERVER_ERROR,
         )
     })?;
-
-    // 저장용 한도는 0 이상으로 유지하고, 표시용 잔여 예산은 별도 컬럼에 보존한다.
-    for (((week_key, _days), weekly_limit), projected_remaining) in days_by_week
-        .iter()
-        .zip(weekly_limits.iter())
-        .zip(projected_remaining.iter())
-    {
-        query(
-            "INSERT INTO budget_config (
-                 owner_user_id,
-                 week_key,
-                 weekly_limit,
-                 projected_remaining,
-                 alert_threshold
-             )
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(owner_user_id, week_key) DO UPDATE SET
-                 weekly_limit = excluded.weekly_limit,
-                 projected_remaining = excluded.projected_remaining,
-                 alert_threshold = excluded.alert_threshold",
-        )
-        .bind(&user.user_id)
-        .bind(week_key)
-        .bind(*weekly_limit)
-        .bind(*projected_remaining)
-        .bind(alert_threshold)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| {
-            Error::from_string(
-                format!("재분배 예산 저장 실패: {}", e),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })?;
-    }
-
-    tx.commit().await.map_err(|e| {
-        Error::from_string(
-            format!("트랜잭션 커밋 실패: {}", e),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
-    })?;
-
-    let weeks = days_by_week
-        .into_iter()
-        .zip(weekly_limits.into_iter())
-        .zip(projected_remaining.into_iter())
-        .map(
-            |(((week_key, days), weekly_limit), projected_remaining)| BudgetRebalanceWeekItem {
-                week_key,
-                days,
-                weekly_limit,
-                projected_remaining,
-            },
-        )
-        .collect::<Vec<BudgetRebalanceWeekItem>>();
 
     Ok(Json(CustomResponse {
         status: true,
         data: Some(BudgetRebalanceResponse {
+            budget_id: inserted.last_insert_rowid(),
             total_budget: payload.total_budget,
-            from_date: payload.from_date,
-            to_date: payload.to_date,
-            as_of_date: payload.as_of_date,
+            from_date: from_date_text,
+            to_date: to_date_text,
+            as_of_date: as_of_date_text,
             spent_so_far,
             remaining_budget,
-            rebalance_from_week,
+            alert_threshold,
             is_overspent: remaining_budget < 0,
-            weeks,
         }),
-        message: Some(String::from(
-            "실제 소비를 반영해 남은 기간의 주차별 예산을 재분배했습니다.",
-        )),
+        message: Some(String::from("기간 예산의 남은 총액을 다시 계산했습니다.")),
     }))
-}
-
-fn parse_naive_date(value: &str, field_name: &str) -> Result<NaiveDate, Error> {
-    NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d").map_err(|_| {
-        Error::from_string(
-            format!("{field_name} 형식이 올바르지 않습니다. 예: 2026-03-05"),
-            StatusCode::BAD_REQUEST,
-        )
-    })
 }

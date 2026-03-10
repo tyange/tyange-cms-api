@@ -1,4 +1,6 @@
+#[cfg(test)]
 mod budget;
+mod budget_periods;
 mod db;
 mod middlewares;
 mod models;
@@ -20,19 +22,15 @@ use crate::routes::delete_post::delete_post;
 use crate::routes::delete_spending::delete_spending;
 use crate::routes::get_all_posts::get_all_posts;
 use crate::routes::get_api_keys::get_api_keys;
-use crate::routes::get_budget_weeks::get_budget_weeks;
+use crate::routes::get_budget::get_budget;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
 use crate::routes::get_spending::get_spending;
 use crate::routes::get_tags_with_category::get_tags_with_category;
-use crate::routes::get_weekly_config::get_weekly_config;
-use crate::routes::get_weekly_summary::{get_weekly_summary, get_weekly_summary_by_key};
 use crate::routes::me::me;
 use crate::routes::rebalance_budget::rebalance_budget;
-use crate::routes::set_budget::set_budget;
 use crate::routes::signup::signup;
-use crate::routes::update_budget::update_budget;
 use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
 use crate::routes::update_spending::update_spending;
@@ -112,15 +110,13 @@ async fn main() -> Result<(), std::io::Error> {
                 post(create_api_key_handler).get(get_api_keys).with(Auth),
             )
             .at("/api-keys/:api_key_id", delete(delete_api_key).with(Auth))
-            .at("/budget/weekly-config", get(get_weekly_config).with(Auth))
-            .at("/budget/set", post(set_budget).with(Auth))
+            .at("/budget", get(get_budget).with(Auth))
             .at("/budget/plan", post(create_budget_plan).with(Auth))
             .at("/budget/rebalance", post(rebalance_budget).with(Auth))
             .at(
                 "/budget/card-excel/remaining-weekly-budget",
                 post(calculate_remaining_weekly_budget).with(Auth),
             )
-            .at("/budget/update/:config_id", put(update_budget).with(Auth))
             .at(
                 "/budget/spending",
                 get(get_spending.with(Auth)).post(create_spending.with(JwtOrApiKeyAuth)),
@@ -128,12 +124,6 @@ async fn main() -> Result<(), std::io::Error> {
             .at(
                 "/budget/spending/:record_id",
                 put(update_spending.with(Auth)).delete(delete_spending.with(Auth)),
-            )
-            .at("/budget/weekly", get(get_weekly_summary).with(Auth))
-            .at("/budget/weeks", get(get_budget_weeks).with(Auth))
-            .at(
-                "/budget/weekly/:week_key",
-                get(get_weekly_summary_by_key).with(Auth),
             )
             .nest("/images", StaticFilesEndpoint::new(upload_base_path))
             .at("/*path", options(options_handler))

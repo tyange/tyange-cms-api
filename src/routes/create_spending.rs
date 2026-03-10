@@ -6,25 +6,14 @@ use poem::{
     web::{Data, Json},
     Error, Request,
 };
-use sqlx::{query, query_as, FromRow};
+use sqlx::query;
 
 use crate::{
+    budget_periods::{date_in_period, get_active_budget_period, sum_spending_for_period},
     models::{AppState, CreateSpendingRequest, CreateSpendingResponse},
-    utils::{iso_week_key_from_datetime, parse_transacted_at},
+    utils::parse_transacted_at,
 };
 use tyange_cms_api::auth::authorization::current_user;
-
-#[derive(FromRow)]
-struct ActiveBudget {
-    weekly_limit: i64,
-    projected_remaining: i64,
-    alert_threshold: f64,
-}
-
-#[derive(FromRow)]
-struct WeeklyTotal {
-    weekly_total: i64,
-}
 
 #[handler]
 pub async fn create_spending(
@@ -46,43 +35,38 @@ pub async fn create_spending(
             StatusCode::BAD_REQUEST,
         )
     })?;
-    let week_key = iso_week_key_from_datetime(&transacted_at);
 
-    let budget = query_as::<_, ActiveBudget>(
-        "SELECT weekly_limit, projected_remaining, alert_threshold
-         FROM budget_config
-         WHERE owner_user_id = ? AND week_key = ?
-         LIMIT 1",
-    )
-    .bind(&user.user_id)
-    .bind(&week_key)
-    .fetch_optional(&data.db)
-    .await
-    .map_err(|e| {
-        Error::from_string(
-            format!("예산 조회 실패: {}", e),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
-    })?;
+    let budget = get_active_budget_period(&data.db, &user.user_id)
+        .await
+        .map_err(|e| {
+            Error::from_string(
+                format!("예산 조회 실패: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?
+        .ok_or_else(|| {
+            Error::from_string(
+                "현재 활성 기간 예산이 없습니다.",
+                StatusCode::NOT_FOUND,
+            )
+        })?;
 
-    let budget = budget.ok_or_else(|| {
-        Error::from_string(
-            "현재 주차에 적용 중인 예산이 없습니다.",
-            StatusCode::NOT_FOUND,
-        )
-    })?;
+    if !date_in_period(&transacted_at, &budget.from_date, &budget.to_date) {
+        return Err(Error::from_string(
+            "transacted_at가 현재 활성 예산 기간 밖에 있습니다.",
+            StatusCode::BAD_REQUEST,
+        ));
+    }
 
     let transacted_at_text = transacted_at.format("%Y-%m-%d %H:%M:%S").to_string();
-
     let inserted = query(
-        "INSERT INTO spending_records (owner_user_id, amount, merchant, transacted_at, week_key)
-         VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO spending_records (owner_user_id, amount, merchant, transacted_at)
+         VALUES (?, ?, ?, ?)",
     )
     .bind(&user.user_id)
     .bind(payload.amount)
     .bind(payload.merchant)
     .bind(&transacted_at_text)
-    .bind(&week_key)
     .execute(&data.db)
     .await
     .map_err(|e| {
@@ -92,26 +76,19 @@ pub async fn create_spending(
         )
     })?;
 
-    let weekly_total = query_as::<_, WeeklyTotal>(
-        "SELECT COALESCE(SUM(amount), 0) AS weekly_total
-         FROM spending_records
-         WHERE owner_user_id = ? AND week_key = ?",
-    )
-    .bind(&user.user_id)
-    .bind(&week_key)
-    .fetch_one(&data.db)
-    .await
-    .map_err(|e| {
-        Error::from_string(
-            format!("주간 합계 조회 실패: {}", e),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
-    })?
-    .weekly_total;
+    let period_total_spent =
+        sum_spending_for_period(&data.db, &user.user_id, &budget.from_date, &budget.to_date)
+            .await
+            .map_err(|e| {
+                Error::from_string(
+                    format!("기간 소비 합계 조회 실패: {}", e),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?;
 
-    let remaining = budget.projected_remaining - weekly_total;
-    let usage_rate = if budget.weekly_limit > 0 {
-        weekly_total as f64 / budget.weekly_limit as f64
+    let remaining = budget.total_budget - period_total_spent;
+    let usage_rate = if budget.total_budget > 0 {
+        period_total_spent as f64 / budget.total_budget as f64
     } else {
         0.0
     };
@@ -120,8 +97,9 @@ pub async fn create_spending(
         StatusCode::CREATED,
         Json(CreateSpendingResponse {
             record_id: inserted.last_insert_rowid(),
-            weekly_total,
-            weekly_limit: budget.weekly_limit,
+            budget_id: budget.budget_id,
+            period_total_spent,
+            total_budget: budget.total_budget,
             remaining,
             alert: usage_rate >= budget.alert_threshold,
         }),

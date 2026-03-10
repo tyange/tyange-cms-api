@@ -180,20 +180,6 @@ pub struct SearchPostsWithWriter {
     pub writer_id: Option<String>,
 }
 
-#[derive(Deserialize)]
-pub struct WeeklyConfigRequest {
-    pub weekly_limit: u32,
-    pub alert_threshold: f64,
-}
-#[derive(FromRow, Serialize)]
-pub struct WeeklyConfigResponse {
-    pub config_id: u32,
-    pub week_key: String,
-    pub weekly_limit: u32,
-    pub projected_remaining: i64,
-    pub alert_threshold: f64,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct CreateSpendingRequest {
     pub amount: i64,
@@ -211,15 +197,11 @@ pub struct UpdateSpendingRequest {
 #[derive(Debug, Serialize)]
 pub struct CreateSpendingResponse {
     pub record_id: i64,
-    pub weekly_total: i64,
-    pub weekly_limit: i64,
+    pub budget_id: i64,
+    pub period_total_spent: i64,
+    pub total_budget: i64,
     pub remaining: i64,
     pub alert: bool,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SpendingQueryParams {
-    pub week: Option<String>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -232,28 +214,34 @@ pub struct SpendingRecordResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SpendingListResponse {
+pub struct SpendingWeekGroup {
     pub week_key: String,
+    pub weekly_total: i64,
+    pub record_count: i64,
     pub records: Vec<SpendingRecordResponse>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct WeeklySummaryResponse {
-    pub week_key: String,
-    pub weekly_limit: i64,
+pub struct SpendingListResponse {
+    pub budget_id: i64,
+    pub from_date: String,
+    pub to_date: String,
     pub total_spent: i64,
-    pub remaining: i64,
-    pub projected_remaining: i64,
-    pub usage_rate: f64,
-    pub alert: bool,
-    pub record_count: i64,
+    pub remaining_budget: i64,
+    pub weeks: Vec<SpendingWeekGroup>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct BudgetWeeksResponse {
-    pub weeks: Vec<String>,
-    pub min_week: Option<String>,
-    pub max_week: Option<String>,
+#[derive(Debug, Serialize, FromRow)]
+pub struct BudgetSummaryResponse {
+    pub budget_id: i64,
+    pub total_budget: i64,
+    pub from_date: String,
+    pub to_date: String,
+    pub total_spent: i64,
+    pub remaining_budget: i64,
+    pub usage_rate: f64,
+    pub alert: bool,
+    pub alert_threshold: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -265,19 +253,15 @@ pub struct BudgetPlanRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct BudgetPlanWeekItem {
-    pub week_key: String,
-    pub days: u32,
-    pub weekly_limit: i64,
-}
-
-#[derive(Debug, Serialize)]
 pub struct BudgetPlanResponse {
+    pub budget_id: i64,
     pub total_budget: i64,
     pub from_date: String,
     pub to_date: String,
     pub daily_budget: f64,
-    pub weeks: Vec<BudgetPlanWeekItem>,
+    pub spent_so_far: i64,
+    pub remaining_budget: i64,
+    pub alert_threshold: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -313,24 +297,16 @@ pub struct BudgetRebalanceRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct BudgetRebalanceWeekItem {
-    pub week_key: String,
-    pub days: u32,
-    pub weekly_limit: i64,
-    pub projected_remaining: i64,
-}
-
-#[derive(Debug, Serialize)]
 pub struct BudgetRebalanceResponse {
+    pub budget_id: i64,
     pub total_budget: i64,
     pub from_date: String,
     pub to_date: String,
     pub as_of_date: String,
     pub spent_so_far: i64,
     pub remaining_budget: i64,
-    pub rebalance_from_week: String,
+    pub alert_threshold: f64,
     pub is_overspent: bool,
-    pub weeks: Vec<BudgetRebalanceWeekItem>,
 }
 
 #[derive(Debug, Deserialize)]

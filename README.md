@@ -1,14 +1,14 @@
 # tyange-cms-api
 
 Rust + Poem + SQLite로 만든 개인용 CMS API 서버입니다.
-블로그 콘텐츠를 관리하고, 주간 예산/지출을 추적하기 위해 만든 백엔드이며 현재는 단일 운영자(개인) 사용 시나리오를 중심으로 구성되어 있습니다.
+블로그 콘텐츠를 관리하고, 기간 총예산/지출을 추적하기 위해 만든 백엔드이며 현재는 단일 운영자(개인) 사용 시나리오를 중심으로 구성되어 있습니다.
 
 ## 이 프로젝트의 목적
 
 이 API는 크게 두 가지를 해결하기 위해 만들어졌습니다.
 
 - 블로그 운영: 포스트/태그/이미지/포트폴리오 데이터를 CMS 형태로 관리
-- 소비 추적: 주차 단위 예산 설정, 지출 기록, 주간 요약 및 예산 계획 계산
+- 소비 추적: 기간 총예산 설정, 지출 기록, 예산 요약 및 기간별 계산
 
 즉, "공용 SaaS형 CMS"보다는 "개인 콘텐츠 + 개인 소비 관리"에 최적화된 구조입니다.
 
@@ -145,27 +145,21 @@ CORS preflight 처리.
 
 ### Budget
 
-- `GET /budget/weekly-config` (JWT)
-현재 주차 예산 설정 조회(없으면 기본값 생성).
-
-- `POST /budget/set` (JWT)
-현재 주차 예산/알림 임계값 저장(업서트).
-
-- `PUT /budget/update/:config_id` (JWT)
-특정 예산 설정(config_id) 수정.
+- `GET /budget` (JWT)
+현재 활성 기간 예산 요약 조회.
 
 - `POST /budget/plan` (JWT)
-기간 총예산을 주차별로 분배 계산 후 저장.
+기간 총예산을 생성한다.
 
 - `POST /budget/card-excel/remaining-weekly-budget` (JWT)
 카드 엑셀 업로드 기반 순지출/잔여예산/주간 버킷 계산.
 
 - `GET /budget/spending`
-주차별 소비 기록 목록 조회(`week=YYYY-Www`, 미지정 시 현재 주차).
+현재 활성 예산 기간의 소비 기록을 조회하고, 응답에서만 ISO week 기준으로 그룹핑한다.
 
 - `POST /budget/spending` (JWT or API Key)
-소비 기록 생성 및 주간 누적/남은 예산 계산.
-응답의 `remaining`은 저장된 `projected_remaining - weekly_total` 기준이며, 소비 생성 시 `projected_remaining` 자체를 다시 쓰지는 않습니다.
+소비 기록 생성 및 기간 누적/남은 예산 계산.
+`transacted_at`는 현재 활성 예산 기간 안에 있어야 합니다.
 
 - `PUT /budget/spending/:record_id`
 소비 기록 수정.
@@ -173,15 +167,8 @@ CORS preflight 처리.
 - `DELETE /budget/spending/:record_id`
 소비 기록 삭제.
 
-- `GET /budget/weekly`
-현재 주차 예산 요약(총지출/잔여/사용률/알림) 조회.
-여기서 `remaining`은 `weekly_limit`이 아니라 저장된 `projected_remaining - total_spent` 의미입니다. `usage_rate`와 `alert`는 기존처럼 `weekly_limit` 기준을 유지합니다.
-
-- `GET /budget/weeks`
-예산이 등록된 주차 목록 조회(`weeks`, `min_week`, `max_week`).
-
-- `GET /budget/weekly/:week_key`
-특정 주차(`YYYY-Www`) 예산 요약 조회.
+- `POST /budget/rebalance` (JWT)
+동일 기간 총예산 기준으로 `as_of_date` 시점의 누적 소비를 반영해 남은 총액을 다시 계산하고 최신 활성 예산으로 저장한다.
 
 ## 테스트
 

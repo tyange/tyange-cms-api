@@ -83,7 +83,7 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     .await
     .map_err(InternalServerError)?;
 
-    migrate_budget_config(pool)
+    migrate_budget_periods(pool)
         .await
         .map_err(InternalServerError)?;
     migrate_spending_records(pool)
@@ -94,119 +94,12 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn migrate_budget_config(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
-    if !table_exists(pool, "budget_config").await? {
-        create_budget_config_table(pool).await?;
-        return Ok(());
+async fn migrate_budget_periods(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    if table_exists(pool, "budget_config").await? {
+        query("DROP TABLE budget_config").execute(pool).await?;
     }
 
-    query("DROP TABLE IF EXISTS budget_config_new")
-        .execute(pool)
-        .await?;
-    query(
-        r#"
-        CREATE TABLE budget_config_new (
-            config_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            owner_user_id TEXT NOT NULL,
-            week_key TEXT NOT NULL,
-            weekly_limit INTEGER NOT NULL DEFAULT 500000,
-            projected_remaining INTEGER NOT NULL DEFAULT 0,
-            alert_threshold REAL NOT NULL DEFAULT 0.85,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(owner_user_id, week_key)
-        )
-        "#,
-    )
-    .execute(pool)
-    .await?;
-
-    let has_owner_user_id = column_exists(pool, "budget_config", "owner_user_id").await?;
-    let has_projected_remaining =
-        column_exists(pool, "budget_config", "projected_remaining").await?;
-
-    if has_owner_user_id {
-        let projected_remaining_select = if has_projected_remaining {
-            "COALESCE(projected_remaining, weekly_limit)"
-        } else {
-            "weekly_limit"
-        };
-        let insert_sql = format!(
-            r#"
-            INSERT INTO budget_config_new
-                (
-                    config_id,
-                    owner_user_id,
-                    week_key,
-                    weekly_limit,
-                    projected_remaining,
-                    alert_threshold,
-                    created_at
-                )
-            SELECT
-                config_id,
-                COALESCE(owner_user_id, 'admin'),
-                week_key,
-                weekly_limit,
-                {projected_remaining_select},
-                alert_threshold,
-                created_at
-            FROM budget_config
-            "#
-        );
-        query(&insert_sql).execute(pool).await?;
-
-        if has_projected_remaining {
-            query(
-                r#"
-                UPDATE budget_config_new
-                SET projected_remaining = (
-                    SELECT COALESCE(old.projected_remaining, old.weekly_limit)
-                    FROM budget_config AS old
-                    WHERE old.config_id = budget_config_new.config_id
-                )
-                "#,
-            )
-            .execute(pool)
-            .await?;
-        } else {
-            query("UPDATE budget_config_new SET projected_remaining = weekly_limit")
-                .execute(pool)
-                .await?;
-        }
-    } else {
-        query(
-            r#"
-            INSERT INTO budget_config_new
-                (
-                    config_id,
-                    owner_user_id,
-                    week_key,
-                    weekly_limit,
-                    projected_remaining,
-                    alert_threshold,
-                    created_at
-                )
-            SELECT
-                config_id,
-                'admin',
-                week_key,
-                weekly_limit,
-                weekly_limit,
-                alert_threshold,
-                created_at
-            FROM budget_config
-            "#,
-        )
-        .execute(pool)
-        .await?;
-    }
-
-    query("DROP TABLE budget_config").execute(pool).await?;
-    query("ALTER TABLE budget_config_new RENAME TO budget_config")
-        .execute(pool)
-        .await?;
-
-    Ok(())
+    create_budget_periods_table(pool).await
 }
 
 async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
@@ -226,7 +119,6 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
             amount INTEGER NOT NULL,
             merchant TEXT,
             transacted_at DATETIME NOT NULL,
-            week_key TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         "#,
@@ -238,14 +130,13 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
         query(
             r#"
             INSERT INTO spending_records_new
-                (record_id, owner_user_id, amount, merchant, transacted_at, week_key, created_at)
+                (record_id, owner_user_id, amount, merchant, transacted_at, created_at)
             SELECT
                 record_id,
                 COALESCE(owner_user_id, 'admin'),
                 amount,
                 merchant,
                 transacted_at,
-                week_key,
                 created_at
             FROM spending_records
             "#,
@@ -256,14 +147,13 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
         query(
             r#"
             INSERT INTO spending_records_new
-                (record_id, owner_user_id, amount, merchant, transacted_at, week_key, created_at)
+                (record_id, owner_user_id, amount, merchant, transacted_at, created_at)
             SELECT
                 record_id,
                 'admin',
                 amount,
                 merchant,
                 transacted_at,
-                week_key,
                 created_at
             FROM spending_records
             "#,
@@ -278,8 +168,8 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
         .await?;
     query(
         r#"
-        CREATE INDEX IF NOT EXISTS idx_spending_records_owner_week
-        ON spending_records(owner_user_id, week_key)
+        CREATE INDEX IF NOT EXISTS idx_spending_records_owner_transacted_at
+        ON spending_records(owner_user_id, transacted_at)
         "#,
     )
     .execute(pool)
@@ -288,19 +178,28 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
     Ok(())
 }
 
-async fn create_budget_config_table(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+async fn create_budget_periods_table(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
     query(
         r#"
-        CREATE TABLE IF NOT EXISTS budget_config (
-            config_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS budget_periods (
+            budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
             owner_user_id TEXT NOT NULL,
-            week_key TEXT NOT NULL,
-            weekly_limit INTEGER NOT NULL DEFAULT 500000,
-            projected_remaining INTEGER NOT NULL DEFAULT 0,
+            total_budget INTEGER NOT NULL,
+            from_date DATE NOT NULL,
+            to_date DATE NOT NULL,
             alert_threshold REAL NOT NULL DEFAULT 0.85,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(owner_user_id, week_key)
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_budget_periods_owner_updated_at
+        ON budget_periods(owner_user_id, updated_at DESC, budget_id DESC)
         "#,
     )
     .execute(pool)
@@ -318,7 +217,6 @@ async fn create_spending_records_table(pool: &SqlitePool) -> std::result::Result
             amount INTEGER NOT NULL,
             merchant TEXT,
             transacted_at DATETIME NOT NULL,
-            week_key TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         "#,
@@ -328,8 +226,8 @@ async fn create_spending_records_table(pool: &SqlitePool) -> std::result::Result
 
     query(
         r#"
-        CREATE INDEX IF NOT EXISTS idx_spending_records_owner_week
-        ON spending_records(owner_user_id, week_key)
+        CREATE INDEX IF NOT EXISTS idx_spending_records_owner_transacted_at
+        ON spending_records(owner_user_id, transacted_at)
         "#,
     )
     .execute(pool)

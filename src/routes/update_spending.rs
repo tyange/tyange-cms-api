@@ -9,6 +9,7 @@ use poem::{
 use sqlx::{query, query_as};
 
 use crate::{
+    budget_periods::{date_in_period, get_active_budget_period},
     models::{AppState, SpendingRecordResponse, UpdateSpendingRequest},
     utils::parse_transacted_at,
 };
@@ -35,18 +36,38 @@ pub async fn update_spending(
             StatusCode::BAD_REQUEST,
         )
     })?;
-    let week_key = crate::utils::iso_week_key_from_datetime(&transacted_at);
-    let transacted_at_text = transacted_at.format("%Y-%m-%d %H:%M:%S").to_string();
 
+    let budget = get_active_budget_period(&data.db, &user.user_id)
+        .await
+        .map_err(|e| {
+            Error::from_string(
+                format!("예산 조회 실패: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?
+        .ok_or_else(|| {
+            Error::from_string(
+                "현재 활성 기간 예산이 없습니다.",
+                StatusCode::NOT_FOUND,
+            )
+        })?;
+
+    if !date_in_period(&transacted_at, &budget.from_date, &budget.to_date) {
+        return Err(Error::from_string(
+            "transacted_at가 현재 활성 예산 기간 밖에 있습니다.",
+            StatusCode::BAD_REQUEST,
+        ));
+    }
+
+    let transacted_at_text = transacted_at.format("%Y-%m-%d %H:%M:%S").to_string();
     let updated = query(
         "UPDATE spending_records
-         SET amount = ?, merchant = ?, transacted_at = ?, week_key = ?
+         SET amount = ?, merchant = ?, transacted_at = ?
          WHERE record_id = ? AND owner_user_id = ?",
     )
     .bind(payload.amount)
     .bind(payload.merchant)
     .bind(&transacted_at_text)
-    .bind(&week_key)
     .bind(record_id)
     .bind(&user.user_id)
     .execute(&data.db)
