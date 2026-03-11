@@ -1,5 +1,4 @@
 pub mod add_user;
-pub mod analyze_card_excel;
 pub mod create_api_key;
 pub mod create_budget_plan;
 pub mod create_spending;

@@ -157,9 +157,6 @@ CORS preflight 처리.
 - `POST /budget/plan` (JWT)
 기간 총예산을 생성한다.
 
-- `POST /budget/card-excel/remaining-weekly-budget` (JWT)
-카드 엑셀 업로드 기반 순지출/잔여예산/주간 버킷 계산.
-
 - `GET /budget/spending`
 현재 활성 예산 기간의 소비 기록을 조회하고, 응답에서만 ISO week 기준으로 그룹핑한다.
 

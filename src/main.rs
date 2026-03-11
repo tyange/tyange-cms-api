@@ -14,7 +14,6 @@ use middlewares::api_key_middleware::JwtOrApiKeyAuth;
 use middlewares::auth_middleware::Auth;
 use std::{env, fs, sync::Arc};
 
-use crate::routes::analyze_card_excel::calculate_remaining_weekly_budget;
 use crate::routes::create_api_key::create_api_key_handler;
 use crate::routes::create_budget_plan::create_budget_plan;
 use crate::routes::create_spending::create_spending;
@@ -118,10 +117,6 @@ async fn main() -> Result<(), std::io::Error> {
                 get(get_budget.with(Auth)).put(update_active_budget.with(Auth)),
             )
             .at("/budget/plan", post(create_budget_plan).with(Auth))
-            .at(
-                "/budget/card-excel/remaining-weekly-budget",
-                post(calculate_remaining_weekly_budget).with(Auth),
-            )
             .at(
                 "/budget/spending",
                 get(get_spending.with(Auth))

@@ -338,28 +338,6 @@ pub struct UpdateActiveBudgetResponse {
     pub is_overspent: bool,
 }
 
-#[derive(Debug, Serialize)]
-pub struct RemainingWeeklyBudgetBucket {
-    pub bucket_index: u32,
-    pub from_date: String,
-    pub to_date: String,
-    pub days: u32,
-    pub amount: i64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct RemainingWeeklyBudgetResponse {
-    pub total_budget: i64,
-    pub period_start: String,
-    pub period_end: String,
-    pub as_of_date: String,
-    pub spent_net: i64,
-    pub remaining_budget: i64,
-    pub remaining_days: u32,
-    pub is_overspent: bool,
-    pub buckets: Vec<RemainingWeeklyBudgetBucket>,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct CreateApiKeyRequest {
     pub name: String,
