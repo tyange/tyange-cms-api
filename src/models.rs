@@ -366,3 +366,75 @@ pub struct ApiKeyResponse {
 pub struct ApiKeyListResponse {
     pub api_keys: Vec<ApiKeyResponse>,
 }
+
+#[derive(Debug, Serialize)]
+pub struct RssSourceResponse {
+    pub source_id: String,
+    pub feed_url: String,
+    pub normalized_feed_url: String,
+    pub title: Option<String>,
+    pub site_url: Option<String>,
+    pub last_polled_at: Option<String>,
+    pub last_success_at: Option<String>,
+    pub last_error: Option<String>,
+    pub consecutive_failures: i64,
+    pub subscribed_at: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RssSourceListResponse {
+    pub sources: Vec<RssSourceResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateRssSourceRequest {
+    pub feed_url: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateRssSourceResponse {
+    pub source_id: String,
+    pub feed_url: String,
+    pub normalized_feed_url: String,
+    pub title: Option<String>,
+    pub site_url: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PushSubscriptionKeysRequest {
+    pub p256dh: String,
+    pub auth: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpsertPushSubscriptionRequest {
+    pub endpoint: String,
+    pub keys: PushSubscriptionKeysRequest,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeletePushSubscriptionRequest {
+    pub endpoint: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WebPushSubscriptionResponse {
+    pub push_subscription_id: i64,
+    pub endpoint: String,
+    pub user_agent: Option<String>,
+    pub created_at: String,
+    pub last_success_at: Option<String>,
+    pub last_failure_at: Option<String>,
+    pub failure_count: i64,
+    pub revoked_at: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WebPushSubscriptionListResponse {
+    pub subscriptions: Vec<WebPushSubscriptionResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PublicPushKeyResponse {
+    pub public_key: String,
+}

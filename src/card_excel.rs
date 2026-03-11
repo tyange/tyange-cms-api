@@ -252,8 +252,8 @@ fn parse_flat_rows(rows: &[Vec<String>]) -> Vec<ParsedCardTransactionRow> {
         };
 
         let window_end = usize::min(idx + 4, cells.len());
-        if let Some(negative_idx) =
-            ((idx + 1)..window_end).find(|candidate_idx| cells[*candidate_idx].trim().starts_with('-'))
+        if let Some(negative_idx) = ((idx + 1)..window_end)
+            .find(|candidate_idx| cells[*candidate_idx].trim().starts_with('-'))
         {
             idx = negative_idx + 1;
             continue;
@@ -477,7 +477,9 @@ pub fn parse_amount_from_string(raw: &str) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{analyze_excel_bytes, parse_amount_from_string, parse_flat_rows, parse_structured_rows};
+    use super::{
+        analyze_excel_bytes, parse_amount_from_string, parse_flat_rows, parse_structured_rows,
+    };
 
     #[test]
     fn parses_shinhancard_style_flat_rows() {

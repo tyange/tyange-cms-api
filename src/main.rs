@@ -6,6 +6,7 @@ mod db;
 mod middlewares;
 mod models;
 mod routes;
+mod rss_push;
 mod utils;
 
 use dotenv::dotenv;
@@ -16,10 +17,13 @@ use std::{env, fs, sync::Arc};
 
 use crate::routes::create_api_key::create_api_key_handler;
 use crate::routes::create_budget_plan::create_budget_plan;
+use crate::routes::create_rss_source::create_rss_source;
 use crate::routes::create_spending::create_spending;
 use crate::routes::delete_all_spending::delete_all_spending;
 use crate::routes::delete_api_key::delete_api_key;
 use crate::routes::delete_post::delete_post;
+use crate::routes::delete_push_subscription::delete_push_subscription;
+use crate::routes::delete_rss_subscription::delete_rss_subscription;
 use crate::routes::delete_spending::delete_spending;
 use crate::routes::get_all_posts::get_all_posts;
 use crate::routes::get_api_keys::get_api_keys;
@@ -27,6 +31,9 @@ use crate::routes::get_budget::get_budget;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
+use crate::routes::get_push_public_key::get_push_public_key;
+use crate::routes::get_push_subscriptions::get_push_subscriptions;
+use crate::routes::get_rss_sources::get_rss_sources;
 use crate::routes::get_spending::get_spending;
 use crate::routes::get_tags_with_category::get_tags_with_category;
 use crate::routes::import_spending_excel::{commit_spending_import, preview_spending_import};
@@ -37,6 +44,7 @@ use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
 use crate::routes::update_spending::update_spending;
 use crate::routes::upload_image::upload_image;
+use crate::routes::upsert_push_subscription::upsert_push_subscription;
 use crate::{models::AppState, routes::add_user::add_user};
 use db::init_db;
 use poem::{
@@ -44,6 +52,7 @@ use poem::{
     middleware::Cors, options, post, put, EndpointExt, Response, Route, Server,
 };
 use routes::{get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post};
+use rss_push::start_polling_worker;
 use sqlx::SqlitePool;
 
 #[handler]
@@ -77,6 +86,8 @@ async fn main() -> Result<(), std::io::Error> {
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
+    start_polling_worker(db.clone());
+
     let state = Arc::new(AppState { db });
 
     fn configure_routes() -> Route {
@@ -102,6 +113,22 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/login", post(login))
             .at("/signup", post(signup))
             .at("/me", get(me).with(Auth))
+            .at(
+                "/rss-sources",
+                get(get_rss_sources).post(create_rss_source).with(Auth),
+            )
+            .at(
+                "/rss-sources/:source_id/subscription",
+                delete(delete_rss_subscription).with(Auth),
+            )
+            .at(
+                "/push/subscriptions",
+                get(get_push_subscriptions)
+                    .post(upsert_push_subscription)
+                    .delete(delete_push_subscription)
+                    .with(Auth),
+            )
+            .at("/push/public-key", get(get_push_public_key))
             .at("/admin/add-user", post(add_user).with(AdminOnly).with(Auth))
             .at(
                 "/admin/posts",

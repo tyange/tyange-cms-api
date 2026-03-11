@@ -1,10 +1,13 @@
 pub mod add_user;
 pub mod create_api_key;
 pub mod create_budget_plan;
+pub mod create_rss_source;
 pub mod create_spending;
 pub mod delete_all_spending;
 pub mod delete_api_key;
 pub mod delete_post;
+pub mod delete_push_subscription;
+pub mod delete_rss_subscription;
 pub mod delete_spending;
 pub mod get_all_posts;
 pub mod get_api_keys;
@@ -14,6 +17,9 @@ pub mod get_portfolio;
 pub mod get_post;
 pub mod get_posts;
 pub mod get_posts_with_tags;
+pub mod get_push_public_key;
+pub mod get_push_subscriptions;
+pub mod get_rss_sources;
 pub mod get_spending;
 pub mod get_tags_with_category;
 pub mod import_spending_excel;
@@ -26,6 +32,7 @@ pub mod update_post;
 pub mod update_spending;
 pub mod upload_image;
 pub mod upload_post;
+pub mod upsert_push_subscription;
 
 #[cfg(test)]
 mod budget_spending_scope_test;
