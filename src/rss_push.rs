@@ -1474,6 +1474,20 @@ mod tests {
 
         let public_key_response = cli.get("/push/public-key").send().await;
         public_key_response.assert_status_is_ok();
+        let public_key_json = public_key_response.json().await;
+        public_key_json.value().object().get("status").assert_bool(true);
+        public_key_json
+            .value()
+            .object()
+            .get("data")
+            .object()
+            .get("public_key")
+            .assert_string("test-public-key");
+        public_key_json
+            .value()
+            .object()
+            .get("message")
+            .assert_null();
 
         cli.delete("/push/subscriptions")
             .header("Authorization", issue_access_token("push-user@example.com"))

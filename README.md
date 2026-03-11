@@ -35,6 +35,11 @@ UPLOAD_PATH=.uploads/images
 # JWT
 JWT_ACCESS_SECRET=replace-with-access-secret
 JWT_REFRESH_SECRET=replace-with-refresh-secret
+
+# Web Push (RSS 기반 브라우저 푸시)
+VAPID_PUBLIC_KEY=replace-with-vapid-public-key
+VAPID_PRIVATE_KEY=replace-with-vapid-private-key
+VAPID_SUBJECT=mailto:you@example.com
 ```
 
 `DATABASE_PATH`, `UPLOAD_PATH`는 절대 경로로 직접 지정해도 됩니다.
@@ -43,6 +48,27 @@ JWT_REFRESH_SECRET=replace-with-refresh-secret
 # 절대 경로 예시
 DATABASE_PATH=/Users/yourname/data/tyange/database.db
 UPLOAD_PATH=/Users/yourname/data/tyange/uploads/images
+```
+
+### Web Push 환경변수
+
+RSS 기반 브라우저 푸시를 사용하려면 아래 환경변수를 함께 설정해야 합니다.
+
+- `VAPID_PUBLIC_KEY`: `GET /push/public-key`가 대시보드에 공개하는 브라우저 등록용 공개키
+- `VAPID_PRIVATE_KEY`: 실제 Web Push 발송 시 VAPID 서명을 만드는 비공개키
+- `VAPID_SUBJECT`: Web Push VAPID `sub` claim에 넣는 연락처. 일반적으로 `mailto:...` 또는 HTTPS URL
+
+동작 방식은 다음과 같습니다.
+
+- `VAPID_PUBLIC_KEY`가 없거나 빈 문자열이면 `GET /push/public-key`는 `503 Service Unavailable`을 반환합니다.
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`가 모두 있어야 RSS polling worker가 실제 브라우저 푸시를 전송할 수 있습니다.
+
+로컬 개발 예시는 아래와 같습니다.
+
+```env
+VAPID_PUBLIC_KEY=your-generated-public-key
+VAPID_PRIVATE_KEY=your-generated-private-key
+VAPID_SUBJECT=mailto:dev@example.com
 ```
 
 ### 2) 실행
