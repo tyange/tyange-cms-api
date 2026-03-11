@@ -148,6 +148,9 @@ CORS preflight 처리.
 - `GET /budget` (JWT)
 현재 활성 기간 예산 요약 조회.
 
+- `PUT /budget` (JWT)
+현재 활성 기간 예산의 총액을 다시 설정한다. `alert_threshold`도 함께 수정할 수 있다.
+
 - `POST /budget/plan` (JWT)
 기간 총예산을 생성한다.
 
@@ -166,9 +169,6 @@ CORS preflight 처리.
 
 - `DELETE /budget/spending/:record_id`
 소비 기록 삭제.
-
-- `POST /budget/rebalance` (JWT)
-동일 기간 총예산 기준으로 `as_of_date` 시점의 누적 소비를 반영해 남은 총액을 다시 계산하고 최신 활성 예산으로 저장한다.
 
 ## 테스트
 

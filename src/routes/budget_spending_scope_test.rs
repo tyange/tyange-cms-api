@@ -20,7 +20,7 @@ use crate::{
         get_api_keys::get_api_keys,
         get_budget::get_budget,
         get_spending::get_spending,
-        rebalance_budget::rebalance_budget,
+        update_active_budget::update_active_budget,
         update_spending::update_spending,
     },
 };
@@ -44,9 +44,11 @@ fn create_budget_app(state: Arc<AppState>) -> impl Endpoint {
             "/api-keys/:api_key_id",
             poem::delete(delete_api_key).with(Auth),
         )
-        .at("/budget", get(get_budget).with(Auth))
+        .at(
+            "/budget",
+            get(get_budget.with(Auth)).put(update_active_budget.with(Auth)),
+        )
         .at("/budget/plan", post(create_budget_plan).with(Auth))
-        .at("/budget/rebalance", post(rebalance_budget).with(Auth))
         .at(
             "/budget/spending",
             get(get_spending.with(Auth)).post(create_spending.with(JwtOrApiKeyAuth)),
@@ -258,6 +260,82 @@ async fn create_spending_rejects_dates_outside_active_period() {
 }
 
 #[tokio::test]
+async fn update_active_budget_changes_total_budget_and_budget_summary() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("budget-update-user", "user");
+
+    cli.post("/budget/plan")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1000,
+            "from_date": "2026-04-01",
+            "to_date": "2026-04-30",
+            "alert_threshold": 0.8
+        }))
+        .send()
+        .await
+        .assert_status_is_ok();
+
+    cli.post("/budget/spending")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "amount": 400,
+            "merchant": "lunch",
+            "transacted_at": "2026-04-02T12:00:00"
+        }))
+        .send()
+        .await
+        .assert_status(StatusCode::CREATED);
+
+    let response = cli
+        .put("/budget")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1500,
+            "alert_threshold": 0.9
+        }))
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    let data = json.value().object().get("data").object();
+    data.get("total_budget").assert_i64(1500);
+    data.get("total_spent").assert_i64(400);
+    data.get("remaining_budget").assert_i64(1100);
+    data.get("alert_threshold").assert_f64(0.9);
+    data.get("is_overspent").assert_bool(false);
+
+    let budget_response = cli
+        .get("/budget")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    budget_response.assert_status_is_ok();
+    let budget = budget_response.json().await;
+    budget.value().object().get("total_budget").assert_i64(1500);
+    budget.value().object().get("total_spent").assert_i64(400);
+    budget.value().object().get("remaining_budget").assert_i64(1100);
+    budget.value().object().get("alert_threshold").assert_f64(0.9);
+}
+
+#[tokio::test]
+async fn update_active_budget_returns_not_found_without_active_period() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state));
+
+    cli.put("/budget")
+        .header("Authorization", issue_access_token("no-budget-user", "user"))
+        .body_json(&json!({
+            "total_budget": 1500
+        }))
+        .send()
+        .await
+        .assert_status(StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn spending_groups_records_by_iso_week_and_matches_totals() {
     let state = create_test_state().await;
     let cli = TestClient::new(create_budget_app(state.clone()));
@@ -362,93 +440,6 @@ async fn update_and_delete_require_record_owner() {
         .send()
         .await
         .assert_status(StatusCode::NOT_FOUND);
-}
-
-#[tokio::test]
-async fn rebalance_recomputes_remaining_budget_and_creates_new_active_period() {
-    let state = create_test_state().await;
-    let cli = TestClient::new(create_budget_app(state.clone()));
-    let token = issue_access_token("rebalance-user", "user");
-
-    cli.post("/budget/plan")
-        .header("Authorization", &token)
-        .body_json(&json!({
-            "total_budget": 2500,
-            "from_date": "2026-03-22",
-            "to_date": "2026-04-21",
-            "alert_threshold": 0.85
-        }))
-        .send()
-        .await
-        .assert_status_is_ok();
-
-    for (amount, transacted_at) in [(100, "2026-03-25T12:00:00"), (350, "2026-04-01T09:00:00")] {
-        cli.post("/budget/spending")
-            .header("Authorization", &token)
-            .body_json(&json!({
-                "amount": amount,
-                "merchant": "seed",
-                "transacted_at": transacted_at
-            }))
-            .send()
-            .await
-            .assert_status(StatusCode::CREATED);
-    }
-
-    let response = cli
-        .post("/budget/rebalance")
-        .header("Authorization", &token)
-        .body_json(&json!({
-            "total_budget": 2500,
-            "from_date": "2026-03-22",
-            "to_date": "2026-04-21",
-            "as_of_date": "2026-04-01",
-            "alert_threshold": 0.9
-        }))
-        .send()
-        .await;
-    response.assert_status_is_ok();
-
-    let json = response.json().await;
-    let data = json.value().object().get("data").object();
-    data.get("spent_so_far").assert_i64(450);
-    data.get("remaining_budget").assert_i64(2050);
-    data.get("alert_threshold").assert_f64(0.9);
-
-    let budget_response = cli
-        .get("/budget")
-        .header("Authorization", &token)
-        .send()
-        .await;
-    budget_response.assert_status_is_ok();
-    let budget_json = budget_response.json().await;
-    budget_json
-        .value()
-        .object()
-        .get("budget_id")
-        .assert_i64(data.get("budget_id").i64());
-}
-
-#[tokio::test]
-async fn rebalance_rejects_negative_request_spent_so_far() {
-    let state = create_test_state().await;
-    let cli = TestClient::new(create_budget_app(state));
-
-    cli.post("/budget/rebalance")
-        .header(
-            "Authorization",
-            issue_access_token("negative-spent-user", "user"),
-        )
-        .body_json(&json!({
-            "total_budget": 700_000,
-            "spent_so_far": -1,
-            "from_date": "2026-03-23",
-            "to_date": "2026-04-05",
-            "as_of_date": "2026-03-30"
-        }))
-        .send()
-        .await
-        .assert_status(StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

@@ -46,11 +46,6 @@ pub async fn sum_spending_for_period(
     .await
 }
 
-pub fn parse_naive_date(value: &str, field_name: &str) -> Result<NaiveDate, String> {
-    NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d")
-        .map_err(|_| format!("{field_name} 형식이 올바르지 않습니다. 예: 2026-03-05"))
-}
-
 pub fn format_naive_date(date: NaiveDate) -> String {
     date.format("%Y-%m-%d").to_string()
 }

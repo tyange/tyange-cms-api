@@ -264,6 +264,24 @@ pub struct BudgetPlanResponse {
     pub alert_threshold: f64,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateActiveBudgetRequest {
+    pub total_budget: i64,
+    pub alert_threshold: Option<f64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UpdateActiveBudgetResponse {
+    pub budget_id: i64,
+    pub total_budget: i64,
+    pub from_date: String,
+    pub to_date: String,
+    pub total_spent: i64,
+    pub remaining_budget: i64,
+    pub alert_threshold: f64,
+    pub is_overspent: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct RemainingWeeklyBudgetBucket {
     pub bucket_index: u32,
@@ -284,29 +302,6 @@ pub struct RemainingWeeklyBudgetResponse {
     pub remaining_days: u32,
     pub is_overspent: bool,
     pub buckets: Vec<RemainingWeeklyBudgetBucket>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct BudgetRebalanceRequest {
-    pub total_budget: i64,
-    pub spent_so_far: Option<i64>,
-    pub from_date: String,
-    pub to_date: String,
-    pub as_of_date: String,
-    pub alert_threshold: Option<f64>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct BudgetRebalanceResponse {
-    pub budget_id: i64,
-    pub total_budget: i64,
-    pub from_date: String,
-    pub to_date: String,
-    pub as_of_date: String,
-    pub spent_so_far: i64,
-    pub remaining_budget: i64,
-    pub alert_threshold: f64,
-    pub is_overspent: bool,
 }
 
 #[derive(Debug, Deserialize)]

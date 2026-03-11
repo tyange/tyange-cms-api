@@ -29,8 +29,8 @@ use crate::routes::get_posts_with_tags::get_posts_with_tags;
 use crate::routes::get_spending::get_spending;
 use crate::routes::get_tags_with_category::get_tags_with_category;
 use crate::routes::me::me;
-use crate::routes::rebalance_budget::rebalance_budget;
 use crate::routes::signup::signup;
+use crate::routes::update_active_budget::update_active_budget;
 use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
 use crate::routes::update_spending::update_spending;
@@ -110,9 +110,11 @@ async fn main() -> Result<(), std::io::Error> {
                 post(create_api_key_handler).get(get_api_keys).with(Auth),
             )
             .at("/api-keys/:api_key_id", delete(delete_api_key).with(Auth))
-            .at("/budget", get(get_budget).with(Auth))
+            .at(
+                "/budget",
+                get(get_budget.with(Auth)).put(update_active_budget.with(Auth)),
+            )
             .at("/budget/plan", post(create_budget_plan).with(Auth))
-            .at("/budget/rebalance", post(rebalance_budget).with(Auth))
             .at(
                 "/budget/card-excel/remaining-weekly-budget",
                 post(calculate_remaining_weekly_budget).with(Auth),
