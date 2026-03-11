@@ -97,7 +97,7 @@ pub async fn get_spending(
         from_date: budget.from_date,
         to_date: budget.to_date,
         total_spent,
-        remaining_budget: budget.total_budget - total_spent,
+        remaining: budget.total_budget - total_spent,
         weeks,
     }))
 }

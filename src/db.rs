@@ -99,13 +99,71 @@ async fn migrate_budget_periods(pool: &SqlitePool) -> std::result::Result<(), sq
         query("DROP TABLE budget_config").execute(pool).await?;
     }
 
-    create_budget_periods_table(pool).await?;
+    if !table_exists(pool, "budget_periods").await? {
+        create_budget_periods_table(pool).await?;
+        return Ok(());
+    }
 
-    if !column_exists(pool, "budget_periods", "snapshot_total_spent").await? {
-        query("ALTER TABLE budget_periods ADD COLUMN snapshot_total_spent INTEGER")
+    if column_exists(pool, "budget_periods", "snapshot_total_spent").await? {
+        query("DROP TABLE IF EXISTS budget_periods_new")
+            .execute(pool)
+            .await?;
+        query(
+            r#"
+            CREATE TABLE budget_periods_new (
+                budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_user_id TEXT NOT NULL,
+                total_budget INTEGER NOT NULL,
+                from_date DATE NOT NULL,
+                to_date DATE NOT NULL,
+                alert_threshold REAL NOT NULL DEFAULT 0.85,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+        query(
+            r#"
+            INSERT INTO budget_periods_new (
+                budget_id,
+                owner_user_id,
+                total_budget,
+                from_date,
+                to_date,
+                alert_threshold,
+                created_at,
+                updated_at
+            )
+            SELECT
+                budget_id,
+                owner_user_id,
+                total_budget,
+                from_date,
+                to_date,
+                alert_threshold,
+                created_at,
+                updated_at
+            FROM budget_periods
+            "#,
+        )
+        .execute(pool)
+        .await?;
+        query("DROP TABLE budget_periods").execute(pool).await?;
+        query("ALTER TABLE budget_periods_new RENAME TO budget_periods")
             .execute(pool)
             .await?;
     }
+
+    query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_budget_periods_owner_updated_at
+        ON budget_periods(owner_user_id, updated_at DESC, budget_id DESC)
+        "#,
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
@@ -233,7 +291,6 @@ async fn create_budget_periods_table(pool: &SqlitePool) -> std::result::Result<(
             from_date DATE NOT NULL,
             to_date DATE NOT NULL,
             alert_threshold REAL NOT NULL DEFAULT 0.85,
-            snapshot_total_spent INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )

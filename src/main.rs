@@ -18,6 +18,7 @@ use crate::routes::analyze_card_excel::calculate_remaining_weekly_budget;
 use crate::routes::create_api_key::create_api_key_handler;
 use crate::routes::create_budget_plan::create_budget_plan;
 use crate::routes::create_spending::create_spending;
+use crate::routes::delete_all_spending::delete_all_spending;
 use crate::routes::delete_api_key::delete_api_key;
 use crate::routes::delete_post::delete_post;
 use crate::routes::delete_spending::delete_spending;
@@ -123,7 +124,9 @@ async fn main() -> Result<(), std::io::Error> {
             )
             .at(
                 "/budget/spending",
-                get(get_spending.with(Auth)).post(create_spending.with(JwtOrApiKeyAuth)),
+                get(get_spending.with(Auth))
+                    .post(create_spending.with(JwtOrApiKeyAuth))
+                    .delete(delete_all_spending.with(Auth)),
             )
             .at(
                 "/budget/spending/import-preview",

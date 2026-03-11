@@ -22,6 +22,7 @@ pub async fn create_budget_plan(
     Json(payload): Json<BudgetPlanRequest>,
 ) -> Result<Json<CustomResponse<BudgetPlanResponse>>, Error> {
     let user = current_user(req)?;
+    reject_unsupported_budget_fields(&payload.extra_fields)?;
     if payload.total_budget <= 0 {
         return Err(Error::from_string(
             "total_budget는 0보다 커야 합니다.",
@@ -45,26 +46,18 @@ pub async fn create_budget_plan(
             StatusCode::BAD_REQUEST,
         ));
     }
-    if matches!(payload.total_spent, Some(total_spent) if total_spent < 0) {
-        return Err(Error::from_string(
-            "total_spent는 0 이상이어야 합니다.",
-            StatusCode::BAD_REQUEST,
-        ));
-    }
 
     let from_date_text = format_naive_date(from_date);
     let to_date_text = format_naive_date(to_date);
-    let total_spent = match payload.total_spent {
-        Some(total_spent) => total_spent,
-        None => sum_spending_for_period(&data.db, &user.user_id, &from_date_text, &to_date_text)
+    let total_spent =
+        sum_spending_for_period(&data.db, &user.user_id, &from_date_text, &to_date_text)
             .await
             .map_err(|e| {
                 Error::from_string(
                     format!("기간 소비 합계 조회 실패: {}", e),
                     StatusCode::INTERNAL_SERVER_ERROR,
                 )
-            })?,
-    };
+            })?;
     let summary = compute_budget_summary(payload.total_budget, total_spent, alert_threshold);
     let total_days = (to_date - from_date).num_days() + 1;
     let daily_budget = payload.total_budget as f64 / total_days as f64;
@@ -75,17 +68,15 @@ pub async fn create_budget_plan(
              total_budget,
              from_date,
              to_date,
-             alert_threshold,
-             snapshot_total_spent
+             alert_threshold
          )
-         VALUES (?, ?, ?, ?, ?, ?)",
+         VALUES (?, ?, ?, ?, ?)",
     )
     .bind(&user.user_id)
     .bind(payload.total_budget)
     .bind(&from_date_text)
     .bind(&to_date_text)
     .bind(alert_threshold)
-    .bind(payload.total_spent)
     .execute(&data.db)
     .await
     .map_err(|e| {
@@ -121,4 +112,27 @@ fn parse_naive_date(value: &str, field_name: &str) -> Result<NaiveDate, Error> {
             StatusCode::BAD_REQUEST,
         )
     })
+}
+
+fn reject_unsupported_budget_fields(
+    extra_fields: &std::collections::HashMap<String, serde_json::Value>,
+) -> Result<(), Error> {
+    if extra_fields.contains_key("total_spent") || extra_fields.contains_key("spent_so_far") {
+        return Err(Error::from_string(
+            "total_spent와 spent_so_far는 더 이상 지원되지 않습니다. 소비 합계는 거래원장에서 자동 계산됩니다.",
+            StatusCode::BAD_REQUEST,
+        ));
+    }
+
+    if !extra_fields.is_empty() {
+        return Err(Error::from_string(
+            format!(
+                "알 수 없는 요청 필드가 있습니다: {}",
+                extra_fields.keys().cloned().collect::<Vec<_>>().join(", ")
+            ),
+            StatusCode::BAD_REQUEST,
+        ));
+    }
+
+    Ok(())
 }

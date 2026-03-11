@@ -21,6 +21,7 @@ use crate::{
         create_api_key::create_api_key_handler,
         create_budget_plan::create_budget_plan,
         create_spending::create_spending,
+        delete_all_spending::delete_all_spending,
         delete_api_key::delete_api_key,
         delete_spending::delete_spending,
         get_api_keys::get_api_keys,
@@ -58,7 +59,9 @@ fn create_budget_app(state: Arc<AppState>) -> impl Endpoint {
         .at("/budget/plan", post(create_budget_plan).with(Auth))
         .at(
             "/budget/spending",
-            get(get_spending.with(Auth)).post(create_spending.with(JwtOrApiKeyAuth)),
+            get(get_spending.with(Auth))
+                .post(create_spending.with(JwtOrApiKeyAuth))
+                .delete(delete_all_spending.with(Auth)),
         )
         .at(
             "/budget/spending/import-preview",
@@ -187,7 +190,7 @@ async fn migrates_legacy_api_keys_to_lookup_and_default_role() {
 }
 
 #[tokio::test]
-async fn migrates_budget_periods_to_add_snapshot_total_spent_column() {
+async fn migrates_budget_periods_to_drop_snapshot_total_spent_column() {
     let db = SqlitePool::connect("sqlite::memory:")
         .await
         .expect("failed to connect sqlite");
@@ -201,6 +204,7 @@ async fn migrates_budget_periods_to_add_snapshot_total_spent_column() {
             from_date DATE NOT NULL,
             to_date DATE NOT NULL,
             alert_threshold REAL NOT NULL DEFAULT 0.85,
+            snapshot_total_spent INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -219,7 +223,7 @@ async fn migrates_budget_periods_to_add_snapshot_total_spent_column() {
     .await
     .expect("failed to inspect budget_periods schema");
 
-    assert_eq!(column_exists, 1);
+    assert_eq!(column_exists, 0);
 }
 
 #[tokio::test]
@@ -306,10 +310,10 @@ async fn budget_summary_uses_latest_budget_period_and_owner_scope() {
 }
 
 #[tokio::test]
-async fn create_budget_plan_accepts_total_spent_snapshot() {
+async fn create_budget_plan_rejects_manual_total_spent_fields() {
     let state = create_test_state().await;
-    let cli = TestClient::new(create_budget_app(state.clone()));
-    let token = issue_access_token("snapshot-create-user", "user");
+    let cli = TestClient::new(create_budget_app(state));
+    let token = issue_access_token("manual-total-spent-create-user", "user");
 
     let response = cli
         .post("/budget/plan")
@@ -323,38 +327,20 @@ async fn create_budget_plan_accepts_total_spent_snapshot() {
         }))
         .send()
         .await;
-    response.assert_status_is_ok();
+    response.assert_status(StatusCode::BAD_REQUEST);
 
-    let json = response.json().await;
-    let data = json.value().object().get("data").object();
-    data.get("budget_id").assert_i64(1);
-    data.get("total_budget").assert_i64(1500);
-    data.get("from_date").assert_string("2026-04-01");
-    data.get("to_date").assert_string("2026-04-30");
-    data.get("total_spent").assert_i64(400);
-    data.get("remaining_budget").assert_i64(1100);
-    data.get("usage_rate").assert_f64(0.267);
-    data.get("alert").assert_bool(false);
-    data.get("alert_threshold").assert_f64(0.9);
-    data.get("is_overspent").assert_bool(false);
-
-    let budget = cli
-        .get("/budget")
+    let alias_response = cli
+        .post("/budget/plan")
         .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1500,
+            "from_date": "2026-04-01",
+            "to_date": "2026-04-30",
+            "spent_so_far": 400
+        }))
         .send()
         .await;
-    budget.assert_status_is_ok();
-    let budget_json = budget.json().await;
-    budget_json
-        .value()
-        .object()
-        .get("total_spent")
-        .assert_i64(400);
-    budget_json
-        .value()
-        .object()
-        .get("remaining_budget")
-        .assert_i64(1100);
+    alias_response.assert_status(StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
@@ -501,10 +487,10 @@ async fn update_active_budget_changes_total_budget_and_budget_summary() {
 }
 
 #[tokio::test]
-async fn update_active_budget_accepts_total_spent_snapshot() {
+async fn update_active_budget_rejects_manual_total_spent_fields() {
     let state = create_test_state().await;
     let cli = TestClient::new(create_budget_app(state.clone()));
-    let token = issue_access_token("snapshot-update-user", "user");
+    let token = issue_access_token("manual-total-spent-update-user", "user");
 
     cli.post("/budget/plan")
         .header("Authorization", &token)
@@ -527,33 +513,18 @@ async fn update_active_budget_accepts_total_spent_snapshot() {
         }))
         .send()
         .await;
-    response.assert_status_is_ok();
+    response.assert_status(StatusCode::BAD_REQUEST);
 
-    let json = response.json().await;
-    let data = json.value().object().get("data").object();
-    data.get("total_spent").assert_i64(400);
-    data.get("remaining_budget").assert_i64(1400);
-    data.get("usage_rate").assert_f64(0.222);
-    data.get("alert").assert_bool(false);
-    data.get("is_overspent").assert_bool(false);
-
-    let budget = cli
-        .get("/budget")
+    let alias_response = cli
+        .put("/budget")
         .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1800,
+            "spent_so_far": 400
+        }))
         .send()
         .await;
-    budget.assert_status_is_ok();
-    let budget_json = budget.json().await;
-    budget_json
-        .value()
-        .object()
-        .get("total_spent")
-        .assert_i64(400);
-    budget_json
-        .value()
-        .object()
-        .get("remaining_budget")
-        .assert_i64(1400);
+    alias_response.assert_status(StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
@@ -603,8 +574,20 @@ async fn update_active_budget_without_total_spent_keeps_spending_sum() {
 #[tokio::test]
 async fn budget_summary_marks_overspent_when_total_spent_exceeds_total_budget() {
     let state = create_test_state().await;
-    let cli = TestClient::new(create_budget_app(state));
+    let cli = TestClient::new(create_budget_app(state.clone()));
     let token = issue_access_token("overspent-user", "user");
+
+    query(
+        "INSERT INTO spending_records (owner_user_id, amount, merchant, transacted_at)
+         VALUES (?, ?, ?, ?)",
+    )
+    .bind("overspent-user")
+    .bind(700_i64)
+    .bind("seeded")
+    .bind("2026-04-05 12:00:00")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed overspent spending");
 
     cli.post("/budget/plan")
         .header("Authorization", &token)
@@ -612,7 +595,6 @@ async fn budget_summary_marks_overspent_when_total_spent_exceeds_total_budget() 
             "total_budget": 500,
             "from_date": "2026-04-01",
             "to_date": "2026-04-30",
-            "total_spent": 700,
             "alert_threshold": 0.9
         }))
         .send()
@@ -698,10 +680,7 @@ async fn spending_groups_records_by_iso_week_and_matches_totals() {
 
     let json = response.json().await;
     json.value().object().get("total_spent").assert_i64(350);
-    json.value()
-        .object()
-        .get("remaining_budget")
-        .assert_i64(650);
+    json.value().object().get("remaining").assert_i64(650);
     let weeks = json.value().object().get("weeks").array();
     assert_eq!(weeks.len(), 2);
     weeks
@@ -771,6 +750,134 @@ async fn update_and_delete_require_record_owner() {
         .send()
         .await
         .assert_status(StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn delete_all_spending_clears_only_current_user_records() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("reset-owner", "user");
+
+    for user_id in ["reset-owner", "other-owner"] {
+        cli.post("/budget/plan")
+            .header("Authorization", issue_access_token(user_id, "user"))
+            .body_json(&json!({
+                "total_budget": 1000,
+                "from_date": "2026-04-01",
+                "to_date": "2026-04-30"
+            }))
+            .send()
+            .await
+            .assert_status_is_ok();
+    }
+
+    for (user_id, amount) in [
+        ("reset-owner", 120_i64),
+        ("reset-owner", 80_i64),
+        ("other-owner", 300_i64),
+    ] {
+        cli.post("/budget/spending")
+            .header("Authorization", issue_access_token(user_id, "user"))
+            .body_json(&json!({
+                "amount": amount,
+                "merchant": "seeded",
+                "transacted_at": "2026-04-05T12:00:00"
+            }))
+            .send()
+            .await
+            .assert_status(StatusCode::CREATED);
+    }
+
+    cli.delete("/budget/spending")
+        .header("Authorization", &token)
+        .send()
+        .await
+        .assert_status(StatusCode::NO_CONTENT);
+
+    let remaining_for_owner: i64 =
+        query_scalar("SELECT COUNT(*) FROM spending_records WHERE owner_user_id = ?")
+            .bind("reset-owner")
+            .fetch_one(&state.db)
+            .await
+            .expect("failed to count reset-owner records");
+    let remaining_for_other: i64 =
+        query_scalar("SELECT COUNT(*) FROM spending_records WHERE owner_user_id = ?")
+            .bind("other-owner")
+            .fetch_one(&state.db)
+            .await
+            .expect("failed to count other-owner records");
+    assert_eq!(remaining_for_owner, 0);
+    assert_eq!(remaining_for_other, 1);
+
+    let budget = cli
+        .get("/budget")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    budget.assert_status_is_ok();
+    let budget_json = budget.json().await;
+    budget_json
+        .value()
+        .object()
+        .get("total_spent")
+        .assert_i64(0);
+    budget_json
+        .value()
+        .object()
+        .get("remaining_budget")
+        .assert_i64(1000);
+
+    let spending = cli
+        .get("/budget/spending")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    spending.assert_status_is_ok();
+    let spending_json = spending.json().await;
+    spending_json
+        .value()
+        .object()
+        .get("total_spent")
+        .assert_i64(0);
+    spending_json
+        .value()
+        .object()
+        .get("remaining")
+        .assert_i64(1000);
+    assert_eq!(spending_json.value().object().get("weeks").array().len(), 0);
+}
+
+#[tokio::test]
+async fn delete_all_spending_returns_no_content_without_active_budget() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("reset-no-budget", "user");
+
+    query(
+        "INSERT INTO spending_records (owner_user_id, amount, merchant, transacted_at)
+         VALUES (?, ?, ?, ?)",
+    )
+    .bind("reset-no-budget")
+    .bind(100_i64)
+    .bind("seeded")
+    .bind("2026-04-05 12:00:00")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed spending without budget");
+
+    cli.delete("/budget/spending")
+        .header("Authorization", &token)
+        .send()
+        .await
+        .assert_status(StatusCode::NO_CONTENT);
+
+    let remaining_for_owner: i64 =
+        query_scalar("SELECT COUNT(*) FROM spending_records WHERE owner_user_id = ?")
+            .bind("reset-no-budget")
+            .fetch_one(&state.db)
+            .await
+            .expect("failed to count reset-no-budget records");
+    assert_eq!(remaining_for_owner, 0);
 }
 
 #[tokio::test]
@@ -1099,10 +1206,10 @@ async fn spending_import_commit_inserts_selected_rows_and_deduplicates_reuploads
     let commit_data = commit_json.value().object().get("data").object();
     commit_data.get("inserted_count").assert_i64(1);
     commit_data.get("skipped_duplicate_count").assert_i64(0);
+    let period_total_spent_from_records = commit_data.get("period_total_spent_from_records").i64();
     commit_data
-        .get("budget_snapshot_total_spent_unchanged")
-        .assert_bool(true);
-
+        .get("remaining")
+        .assert_i64(300000 - period_total_spent_from_records);
     let imported: (Option<String>, Option<String>) = sqlx::query_as(
         "SELECT source_type, source_fingerprint
          FROM spending_records
@@ -1164,21 +1271,20 @@ async fn spending_import_commit_inserts_selected_rows_and_deduplicates_reuploads
 }
 
 #[tokio::test]
-async fn spending_import_keeps_budget_snapshot_total_spent_unchanged() {
+async fn spending_import_updates_budget_summary_from_records() {
     let Some(fixture_bytes) = fixture_excel_bytes() else {
         return;
     };
     let state = create_test_state().await;
     let cli = TestClient::new(create_budget_app(state));
-    let token = issue_access_token("excel-snapshot-user", "user");
+    let token = issue_access_token("excel-summary-user", "user");
 
     cli.post("/budget/plan")
         .header("Authorization", &token)
         .body_json(&json!({
             "total_budget": 300000,
             "from_date": "2026-03-01",
-            "to_date": "2026-03-05",
-            "total_spent": 999
+            "to_date": "2026-03-05"
         }))
         .send()
         .await
@@ -1215,7 +1321,8 @@ async fn spending_import_keeps_budget_snapshot_total_spent_unchanged() {
         .string()
         .to_string();
 
-    cli.post("/budget/spending/import-commit")
+    let commit = cli
+        .post("/budget/spending/import-commit")
         .header("Authorization", &token)
         .multipart(
             TestForm::new()
@@ -1228,8 +1335,14 @@ async fn spending_import_keeps_budget_snapshot_total_spent_unchanged() {
                 .text("selected_fingerprints", &fingerprint),
         )
         .send()
-        .await
-        .assert_status_is_ok();
+        .await;
+    commit.assert_status_is_ok();
+    let commit_json = commit.json().await;
+    let commit_data = commit_json.value().object().get("data").object();
+    let period_total_spent_from_records = commit_data.get("period_total_spent_from_records").i64();
+    commit_data
+        .get("remaining")
+        .assert_i64(300000 - period_total_spent_from_records);
 
     let budget = cli
         .get("/budget")
@@ -1242,7 +1355,7 @@ async fn spending_import_keeps_budget_snapshot_total_spent_unchanged() {
         .value()
         .object()
         .get("total_spent")
-        .assert_i64(999);
+        .assert_i64(period_total_spent_from_records);
 
     let spending = cli
         .get("/budget/spending")
@@ -1251,7 +1364,11 @@ async fn spending_import_keeps_budget_snapshot_total_spent_unchanged() {
         .await;
     spending.assert_status_is_ok();
     let spending_json = spending.json().await;
-    assert!(spending_json.value().object().get("total_spent").i64() > 0);
+    spending_json
+        .value()
+        .object()
+        .get("total_spent")
+        .assert_i64(period_total_spent_from_records);
 }
 
 #[tokio::test]

@@ -8,9 +8,7 @@ use poem::{
 };
 
 use crate::{
-    budget_periods::{
-        compute_budget_summary, get_active_budget_period, resolve_budget_total_spent,
-    },
+    budget_periods::{compute_budget_summary, get_active_budget_period, sum_spending_for_period},
     models::{AppState, BudgetSummaryResponse},
 };
 use tyange_cms_api::auth::authorization::current_user;
@@ -33,14 +31,15 @@ pub async fn get_budget(
             Error::from_string("현재 활성 기간 예산이 없습니다.", StatusCode::NOT_FOUND)
         })?;
 
-    let total_spent = resolve_budget_total_spent(&data.db, &user.user_id, &budget)
-        .await
-        .map_err(|e| {
-            Error::from_string(
-                format!("소비 합계 조회 실패: {}", e),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })?;
+    let total_spent =
+        sum_spending_for_period(&data.db, &user.user_id, &budget.from_date, &budget.to_date)
+            .await
+            .map_err(|e| {
+                Error::from_string(
+                    format!("소비 합계 조회 실패: {}", e),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?;
     let summary = compute_budget_summary(budget.total_budget, total_spent, budget.alert_threshold);
 
     Ok(Json(BudgetSummaryResponse {

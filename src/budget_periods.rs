@@ -8,7 +8,6 @@ pub struct BudgetPeriodRow {
     pub from_date: String,
     pub to_date: String,
     pub alert_threshold: f64,
-    pub snapshot_total_spent: Option<i64>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -24,7 +23,7 @@ pub async fn get_active_budget_period(
     owner_user_id: &str,
 ) -> Result<Option<BudgetPeriodRow>, sqlx::Error> {
     query_as::<_, BudgetPeriodRow>(
-        "SELECT budget_id, total_budget, from_date, to_date, alert_threshold, snapshot_total_spent
+        "SELECT budget_id, total_budget, from_date, to_date, alert_threshold
          FROM budget_periods
          WHERE owner_user_id = ?
          ORDER BY updated_at DESC, budget_id DESC
@@ -33,19 +32,6 @@ pub async fn get_active_budget_period(
     .bind(owner_user_id)
     .fetch_optional(pool)
     .await
-}
-
-pub async fn resolve_budget_total_spent(
-    pool: &SqlitePool,
-    owner_user_id: &str,
-    budget: &BudgetPeriodRow,
-) -> Result<i64, sqlx::Error> {
-    match budget.snapshot_total_spent {
-        Some(total_spent) => Ok(total_spent),
-        None => {
-            sum_spending_for_period(pool, owner_user_id, &budget.from_date, &budget.to_date).await
-        }
-    }
 }
 
 pub fn compute_budget_summary(

@@ -151,11 +151,11 @@ CORS preflight 처리.
 `budget_id`, `total_budget`, `from_date`, `to_date`, `total_spent`, `remaining_budget`, `usage_rate`, `alert`, `alert_threshold`, `is_overspent`
 
 - `PUT /budget` (JWT)
-현재 활성 기간 예산의 총액을 다시 설정한다. `alert_threshold`와 현재까지의 누적 지출 스냅샷(`total_spent`)도 함께 수정할 수 있다.
+현재 활성 기간 예산의 총액과 `alert_threshold`를 다시 설정한다.
 기간 필드(`from_date`, `to_date`)는 수정할 수 없다.
 
 - `POST /budget/plan` (JWT)
-기간 총예산을 생성한다. 현재까지의 누적 지출 스냅샷(`total_spent`)도 함께 저장할 수 있다.
+기간 총예산을 생성한다.
 
 - `POST /budget/card-excel/remaining-weekly-budget` (JWT)
 카드 엑셀 업로드 기반 순지출/잔여예산/주간 버킷 계산.
@@ -166,6 +166,9 @@ CORS preflight 처리.
 - `POST /budget/spending` (JWT or API Key)
 소비 기록 생성 및 기간 누적/남은 예산 계산.
 `transacted_at`는 현재 활성 예산 기간 안에 있어야 합니다.
+
+- `DELETE /budget/spending` (JWT)
+현재 로그인 사용자의 소비 기록을 모두 삭제한다. 예산 기간과 주간 설정은 유지된다.
 
 - `POST /budget/spending/import-preview` (JWT)
 신한카드 XLS 파일을 업로드해 미리보기 결과를 반환한다. 응답에는 `summary`, `rows`가 포함되며 각 row는 `fingerprint`, `transacted_at`, `amount`, `merchant`, `status`, `reason`을 가진다.
@@ -188,7 +191,6 @@ CORS preflight 처리.
   "total_budget": 1500,
   "from_date": "2026-04-01",
   "to_date": "2026-04-30",
-  "total_spent": 400,
   "alert_threshold": 0.9
 }
 ```
@@ -198,13 +200,9 @@ CORS preflight 처리.
 ```json
 {
   "total_budget": 1800,
-  "total_spent": 400,
   "alert_threshold": 0.9
 }
 ```
-
-`POST /budget/plan`, `PUT /budget`는 `total_spent`를 권장 필드명으로 사용한다.
-하위 호환을 위해 `spent_so_far`도 같은 의미의 alias로 허용한다.
 
 #### Budget 계산 규칙
 
@@ -212,20 +210,13 @@ CORS preflight 처리.
 - `is_overspent = total_spent > total_budget`
 - `usage_rate = total_spent / total_budget` (`total_budget > 0`)
 - `alert = usage_rate >= alert_threshold`
-
-#### Budget total_spent 정책
-
-- `total_spent`를 요청 바디에 넣으면, 이 값은 `budget_periods.snapshot_total_spent`에 저장되는 요약 스냅샷으로 취급한다.
-- 스냅샷이 저장된 예산은 `GET /budget`, `POST /budget/plan`, `PUT /budget` 응답에서 소비 기록 합계 대신 이 값을 사용한다.
-- `total_spent`를 생략하면 기존처럼 해당 기간의 `spending_records` 합계를 사용한다.
-- 따라서 스냅샷 값과 소비 기록 합계가 달라도 에러로 막지 않는다. 대시보드 수동 보정값을 우선해야 하는 요구사항에는 이 방식이 권장안이다.
+- `total_spent`는 항상 해당 기간의 `spending_records` 합계로 계산한다.
 
 #### Spending import 정책
 
 - import 대상은 신한카드 XLS 거래내역이며 서버는 stateless하게 `preview -> commit` 2단계로 처리한다.
 - imported row는 `source_type='shinhancard_xls'`, `source_fingerprint`를 저장해 동일 거래 재업로드를 중복으로 막는다.
-- import는 `spending_records`만 갱신하고 `budget_periods.snapshot_total_spent`는 수정하지 않는다.
-- 따라서 스냅샷 예산을 사용하는 경우 `GET /budget.total_spent`와 `GET /budget/spending.total_spent`가 import 후에도 다를 수 있다.
+- import 후 예산 요약의 `total_spent`도 같은 거래원장 기준으로 계산된다.
 
 ## 테스트
 

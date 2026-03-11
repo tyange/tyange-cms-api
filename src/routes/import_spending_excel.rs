@@ -170,6 +170,7 @@ pub async fn commit_spending_import(
         sum_spending_for_period(&data.db, &user.user_id, &budget.from_date, &budget.to_date)
             .await
             .map_err(internal_error("기간 소비 합계 조회 실패"))?;
+    let remaining = budget.total_budget - period_total_spent_from_records;
 
     Ok(Json(CustomResponse {
         status: true,
@@ -183,7 +184,7 @@ pub async fn commit_spending_import(
             inserted_amount_sum,
             inserted_net_amount_sum,
             period_total_spent_from_records,
-            budget_snapshot_total_spent_unchanged: true,
+            remaining,
         }),
         message: Some("선택한 엑셀 소비내역을 반영했습니다.".to_string()),
     }))

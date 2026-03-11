@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::{FromRow, Pool, Sqlite};
+use std::collections::HashMap;
 
 pub struct AppState {
     pub db: Pool<Sqlite>,
@@ -227,7 +229,7 @@ pub struct SpendingListResponse {
     pub from_date: String,
     pub to_date: String,
     pub total_spent: i64,
-    pub remaining_budget: i64,
+    pub remaining: i64,
     pub weeks: Vec<SpendingWeekGroup>,
 }
 
@@ -272,7 +274,7 @@ pub struct SpendingImportCommitResponse {
     pub inserted_amount_sum: i64,
     pub inserted_net_amount_sum: i64,
     pub period_total_spent_from_records: i64,
-    pub budget_snapshot_total_spent_unchanged: bool,
+    pub remaining: i64,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -294,9 +296,9 @@ pub struct BudgetPlanRequest {
     pub total_budget: i64,
     pub from_date: String,
     pub to_date: String,
-    #[serde(alias = "spent_so_far")]
-    pub total_spent: Option<i64>,
     pub alert_threshold: Option<f64>,
+    #[serde(flatten)]
+    pub extra_fields: HashMap<String, Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -317,9 +319,9 @@ pub struct BudgetPlanResponse {
 #[derive(Debug, Deserialize)]
 pub struct UpdateActiveBudgetRequest {
     pub total_budget: i64,
-    #[serde(alias = "spent_so_far")]
-    pub total_spent: Option<i64>,
     pub alert_threshold: Option<f64>,
+    #[serde(flatten)]
+    pub extra_fields: HashMap<String, Value>,
 }
 
 #[derive(Debug, Serialize)]
