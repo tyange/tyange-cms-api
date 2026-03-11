@@ -42,7 +42,9 @@ pub async fn resolve_budget_total_spent(
 ) -> Result<i64, sqlx::Error> {
     match budget.snapshot_total_spent {
         Some(total_spent) => Ok(total_spent),
-        None => sum_spending_for_period(pool, owner_user_id, &budget.from_date, &budget.to_date).await,
+        None => {
+            sum_spending_for_period(pool, owner_user_id, &budget.from_date, &budget.to_date).await
+        }
     }
 }
 

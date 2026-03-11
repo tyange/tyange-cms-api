@@ -1,6 +1,5 @@
-use std::{io::Cursor, sync::Arc};
+use std::sync::Arc;
 
-use calamine::{Data, Reader, Xls, Xlsx};
 use chrono::{Duration, Local, NaiveDate};
 use poem::{
     handler,
@@ -9,20 +8,10 @@ use poem::{
     Error,
 };
 
+use crate::card_excel::analyze_excel_bytes;
 use crate::models::{
     AppState, CustomResponse, RemainingWeeklyBudgetBucket, RemainingWeeklyBudgetResponse,
 };
-
-#[derive(Debug, Clone)]
-struct ParsedRow {
-    date: NaiveDate,
-    amount: i64,
-}
-
-#[derive(Debug, Clone)]
-struct SheetCandidate {
-    rows: Vec<ParsedRow>,
-}
 
 #[handler]
 pub async fn calculate_remaining_weekly_budget(
@@ -118,7 +107,10 @@ pub async fn calculate_remaining_weekly_budget(
     let spent_net = candidate
         .rows
         .iter()
-        .filter(|row| row.date >= from_date && row.date <= as_of_date)
+        .filter(|row| {
+            let date = row.transacted_at.date();
+            date >= from_date && date <= as_of_date
+        })
         .map(|row| row.amount)
         .sum::<i64>();
     let remaining_budget = total_budget - spent_net;
@@ -143,285 +135,6 @@ pub async fn calculate_remaining_weekly_budget(
         data: Some(response),
         message: Some("순지출 기준 남은 주간 예산을 계산했습니다.".to_string()),
     }))
-}
-
-fn analyze_excel_bytes(
-    file_bytes: &[u8],
-    file_name: Option<&str>,
-) -> Result<SheetCandidate, String> {
-    let is_xls = file_name
-        .map(|name| name.to_ascii_lowercase().ends_with(".xls"))
-        .unwrap_or(false);
-
-    let first_try = if is_xls {
-        parse_xls(file_bytes)
-    } else {
-        parse_xlsx(file_bytes)
-    };
-
-    match first_try {
-        Ok(v) => Ok(v),
-        Err(first_err) => {
-            let second_try = if is_xls {
-                parse_xlsx(file_bytes)
-            } else {
-                parse_xls(file_bytes)
-            };
-            second_try.or(Err(first_err))
-        }
-    }
-}
-
-fn parse_xlsx(file_bytes: &[u8]) -> Result<SheetCandidate, String> {
-    let mut workbook: Xlsx<Cursor<Vec<u8>>> =
-        Xlsx::new(Cursor::new(file_bytes.to_vec())).map_err(|e| e.to_string())?;
-    extract_best_candidate(&mut workbook)
-}
-
-fn parse_xls(file_bytes: &[u8]) -> Result<SheetCandidate, String> {
-    let mut workbook: Xls<Cursor<Vec<u8>>> =
-        Xls::new(Cursor::new(file_bytes.to_vec())).map_err(|e| e.to_string())?;
-    extract_best_candidate(&mut workbook)
-}
-
-fn extract_best_candidate<R>(workbook: &mut R) -> Result<SheetCandidate, String>
-where
-    R: Reader<Cursor<Vec<u8>>>,
-{
-    let mut best_candidate: Option<SheetCandidate> = None;
-
-    for sheet_name in workbook.sheet_names().to_vec() {
-        let Ok(range) = workbook.worksheet_range(&sheet_name) else {
-            continue;
-        };
-
-        let Some((header_row, date_col, amount_col)) = detect_header_and_columns(&range) else {
-            continue;
-        };
-
-        let mut rows = Vec::new();
-        for row in range.rows().skip(header_row + 1) {
-            let Some(date_cell) = row.get(date_col) else {
-                continue;
-            };
-            let Some(amount_cell) = row.get(amount_col) else {
-                continue;
-            };
-
-            let Some(date) = parse_excel_date(date_cell) else {
-                continue;
-            };
-            let Some(amount) = parse_amount(amount_cell) else {
-                continue;
-            };
-
-            rows.push(ParsedRow { date, amount });
-        }
-
-        if rows.is_empty() {
-            continue;
-        }
-
-        let candidate = SheetCandidate { rows };
-
-        if let Some(current) = &best_candidate {
-            if candidate.rows.len() > current.rows.len() {
-                best_candidate = Some(candidate);
-            }
-        } else {
-            best_candidate = Some(candidate);
-        }
-    }
-
-    best_candidate.ok_or_else(|| {
-        "날짜/금액 컬럼을 자동 인식하지 못했습니다. 헤더명을 확인해주세요.".to_string()
-    })
-}
-
-fn detect_header_and_columns(range: &calamine::Range<Data>) -> Option<(usize, usize, usize)> {
-    let max_scan_rows = usize::min(20, range.height());
-
-    let mut best: Option<(usize, usize, usize, i32)> = None;
-
-    for (row_idx, row) in range.rows().take(max_scan_rows).enumerate() {
-        let mut best_date: Option<(usize, i32)> = None;
-        let mut best_amount: Option<(usize, i32)> = None;
-
-        for (col_idx, cell) in row.iter().enumerate() {
-            let label = normalize_header_text(cell.to_string());
-            if label.is_empty() {
-                continue;
-            }
-
-            let date_score = date_keyword_score(&label);
-            if date_score > 0 {
-                match best_date {
-                    Some((_, score)) if score >= date_score => {}
-                    _ => best_date = Some((col_idx, date_score)),
-                }
-            }
-
-            let amount_score = amount_keyword_score(&label);
-            if amount_score > 0 {
-                match best_amount {
-                    Some((_, score)) if score >= amount_score => {}
-                    _ => best_amount = Some((col_idx, amount_score)),
-                }
-            }
-        }
-
-        let Some((date_col, date_score)) = best_date else {
-            continue;
-        };
-        let Some((amount_col, amount_score)) = best_amount else {
-            continue;
-        };
-        if date_col == amount_col {
-            continue;
-        }
-
-        let row_score = date_score + amount_score;
-        match best {
-            Some((_, _, _, best_score)) if best_score >= row_score => {}
-            _ => best = Some((row_idx, date_col, amount_col, row_score)),
-        }
-    }
-
-    best.map(|(r, d, a, _)| (r, d, a))
-}
-
-fn normalize_header_text(value: String) -> String {
-    value
-        .to_lowercase()
-        .replace([' ', '\t', '\n', '\r', '_', '-', '/', '.', ':'], "")
-}
-
-fn date_keyword_score(label: &str) -> i32 {
-    let keys = [
-        "거래일",
-        "이용일",
-        "승인일",
-        "매입일",
-        "사용일",
-        "일자",
-        "date",
-        "transacted",
-    ];
-
-    keyword_score(label, &keys)
-}
-
-fn amount_keyword_score(label: &str) -> i32 {
-    let keys = [
-        "이용금액",
-        "승인금액",
-        "결제금액",
-        "사용금액",
-        "금액",
-        "amount",
-        "원화",
-    ];
-
-    keyword_score(label, &keys)
-}
-
-fn keyword_score(label: &str, keys: &[&str]) -> i32 {
-    keys.iter()
-        .map(|k| {
-            if label == *k {
-                5
-            } else if label.contains(k) {
-                3
-            } else {
-                0
-            }
-        })
-        .max()
-        .unwrap_or(0)
-}
-
-fn parse_excel_date(cell: &Data) -> Option<NaiveDate> {
-    match cell {
-        Data::DateTime(excel_dt) => {
-            let days = excel_dt.as_f64().floor() as i64;
-            excel_serial_to_date(days)
-        }
-        Data::Float(v) => excel_serial_to_date(v.floor() as i64),
-        Data::Int(v) => excel_serial_to_date(*v),
-        Data::String(s) => parse_date_from_string(s),
-        _ => parse_date_from_string(&cell.to_string()),
-    }
-}
-
-fn excel_serial_to_date(serial_days: i64) -> Option<NaiveDate> {
-    if !(1..=90000).contains(&serial_days) {
-        return None;
-    }
-
-    let base = NaiveDate::from_ymd_opt(1899, 12, 30)?;
-    base.checked_add_signed(Duration::days(serial_days))
-}
-
-fn parse_date_from_string(raw: &str) -> Option<NaiveDate> {
-    let s = raw.trim();
-    if s.is_empty() {
-        return None;
-    }
-
-    let date_part = s.split_whitespace().next().unwrap_or(s);
-    let normalized = date_part.replace(['.', '/'], "-");
-
-    if let Ok(date) = NaiveDate::parse_from_str(&normalized, "%Y-%m-%d") {
-        return Some(date);
-    }
-
-    if normalized.len() == 8 {
-        if let Ok(date) = NaiveDate::parse_from_str(&normalized, "%Y%m%d") {
-            return Some(date);
-        }
-    }
-
-    None
-}
-
-fn parse_amount(cell: &Data) -> Option<i64> {
-    match cell {
-        Data::Float(v) => Some(v.round() as i64),
-        Data::Int(v) => Some(*v),
-        Data::String(s) => parse_amount_from_string(s),
-        _ => parse_amount_from_string(&cell.to_string()),
-    }
-}
-
-fn parse_amount_from_string(raw: &str) -> Option<i64> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let is_negative =
-        (trimmed.starts_with('(') && trimmed.ends_with(')')) || trimmed.starts_with('-');
-
-    let filtered = trimmed
-        .chars()
-        .filter(|ch| ch.is_ascii_digit() || *ch == '.' || *ch == ',')
-        .collect::<String>()
-        .replace(',', "");
-
-    if filtered.is_empty() {
-        return None;
-    }
-
-    let parsed = if filtered.contains('.') {
-        filtered.parse::<f64>().ok().map(|v| v.round() as i64)
-    } else {
-        filtered.parse::<i64>().ok()
-    }?;
-
-    Some(match is_negative {
-        true => -parsed,
-        false => parsed,
-    })
 }
 
 fn parse_i64_strict(value: &str, field_name: &str) -> Result<i64, Error> {
@@ -532,22 +245,24 @@ fn allocate_remaining_buckets(
 mod tests {
     use chrono::NaiveDate;
 
-    use super::{allocate_remaining_buckets, parse_amount_from_string, parse_date_from_string};
+    use crate::card_excel::{parse_amount_from_string, parse_excel_date_string};
+
+    use super::allocate_remaining_buckets;
 
     #[test]
     fn parse_date_formats() {
         assert_eq!(
-            parse_date_from_string("2026-03-03").unwrap().to_string(),
+            parse_excel_date_string("2026-03-03").unwrap().to_string(),
             "2026-03-03"
         );
         assert_eq!(
-            parse_date_from_string("2026.03.03 12:20:00")
+            parse_excel_date_string("2026.03.03 12:20:00")
                 .unwrap()
                 .to_string(),
             "2026-03-03"
         );
         assert_eq!(
-            parse_date_from_string("20260303").unwrap().to_string(),
+            parse_excel_date_string("20260303").unwrap().to_string(),
             "2026-03-03"
         );
     }

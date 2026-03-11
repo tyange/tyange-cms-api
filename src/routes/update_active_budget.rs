@@ -9,7 +9,9 @@ use poem::{
 use sqlx::query;
 
 use crate::{
-    budget_periods::{compute_budget_summary, get_active_budget_period, resolve_budget_total_spent},
+    budget_periods::{
+        compute_budget_summary, get_active_budget_period, resolve_budget_total_spent,
+    },
     models::{AppState, CustomResponse, UpdateActiveBudgetRequest, UpdateActiveBudgetResponse},
 };
 use tyange_cms_api::auth::authorization::current_user;
@@ -38,10 +40,7 @@ pub async fn update_active_budget(
             )
         })?
         .ok_or_else(|| {
-            Error::from_string(
-                "현재 활성 기간 예산이 없습니다.",
-                StatusCode::NOT_FOUND,
-            )
+            Error::from_string("현재 활성 기간 예산이 없습니다.", StatusCode::NOT_FOUND)
         })?;
 
     let alert_threshold = payload.alert_threshold.unwrap_or(budget.alert_threshold);

@@ -116,6 +116,11 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
         return Ok(());
     }
 
+    let has_owner_user_id = column_exists(pool, "spending_records", "owner_user_id").await?;
+    let has_source_type = column_exists(pool, "spending_records", "source_type").await?;
+    let has_source_fingerprint =
+        column_exists(pool, "spending_records", "source_fingerprint").await?;
+
     query("DROP TABLE IF EXISTS spending_records_new")
         .execute(pool)
         .await?;
@@ -127,6 +132,8 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
             amount INTEGER NOT NULL,
             merchant TEXT,
             transacted_at DATETIME NOT NULL,
+            source_type TEXT,
+            source_fingerprint TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         "#,
@@ -134,34 +141,55 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
     .execute(pool)
     .await?;
 
-    if column_exists(pool, "spending_records", "owner_user_id").await? {
-        query(
-            r#"
-            INSERT INTO spending_records_new
-                (record_id, owner_user_id, amount, merchant, transacted_at, created_at)
-            SELECT
-                record_id,
-                COALESCE(owner_user_id, 'admin'),
-                amount,
-                merchant,
-                transacted_at,
-                created_at
-            FROM spending_records
-            "#,
-        )
-        .execute(pool)
-        .await?;
+    if has_owner_user_id {
+        let copy_sql = match (has_source_type, has_source_fingerprint) {
+            (true, true) => {
+                r#"
+                INSERT INTO spending_records_new
+                    (record_id, owner_user_id, amount, merchant, transacted_at, source_type, source_fingerprint, created_at)
+                SELECT
+                    record_id,
+                    COALESCE(owner_user_id, 'admin'),
+                    amount,
+                    merchant,
+                    transacted_at,
+                    source_type,
+                    source_fingerprint,
+                    created_at
+                FROM spending_records
+                "#
+            }
+            _ => {
+                r#"
+                INSERT INTO spending_records_new
+                    (record_id, owner_user_id, amount, merchant, transacted_at, source_type, source_fingerprint, created_at)
+                SELECT
+                    record_id,
+                    COALESCE(owner_user_id, 'admin'),
+                    amount,
+                    merchant,
+                    transacted_at,
+                    NULL,
+                    NULL,
+                    created_at
+                FROM spending_records
+                "#
+            }
+        };
+        query(copy_sql).execute(pool).await?;
     } else {
         query(
             r#"
             INSERT INTO spending_records_new
-                (record_id, owner_user_id, amount, merchant, transacted_at, created_at)
+                (record_id, owner_user_id, amount, merchant, transacted_at, source_type, source_fingerprint, created_at)
             SELECT
                 record_id,
                 'admin',
                 amount,
                 merchant,
                 transacted_at,
+                NULL,
+                NULL,
                 created_at
             FROM spending_records
             "#,
@@ -178,6 +206,15 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
         r#"
         CREATE INDEX IF NOT EXISTS idx_spending_records_owner_transacted_at
         ON spending_records(owner_user_id, transacted_at)
+        "#,
+    )
+    .execute(pool)
+    .await?;
+    query(
+        r#"
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_spending_records_import_fingerprint
+        ON spending_records(owner_user_id, source_type, source_fingerprint)
+        WHERE source_type IS NOT NULL AND source_fingerprint IS NOT NULL
         "#,
     )
     .execute(pool)
@@ -226,6 +263,8 @@ async fn create_spending_records_table(pool: &SqlitePool) -> std::result::Result
             amount INTEGER NOT NULL,
             merchant TEXT,
             transacted_at DATETIME NOT NULL,
+            source_type TEXT,
+            source_fingerprint TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         "#,
@@ -237,6 +276,15 @@ async fn create_spending_records_table(pool: &SqlitePool) -> std::result::Result
         r#"
         CREATE INDEX IF NOT EXISTS idx_spending_records_owner_transacted_at
         ON spending_records(owner_user_id, transacted_at)
+        "#,
+    )
+    .execute(pool)
+    .await?;
+    query(
+        r#"
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_spending_records_import_fingerprint
+        ON spending_records(owner_user_id, source_type, source_fingerprint)
+        WHERE source_type IS NOT NULL AND source_fingerprint IS NOT NULL
         "#,
     )
     .execute(pool)

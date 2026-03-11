@@ -45,10 +45,7 @@ pub async fn create_spending(
             )
         })?
         .ok_or_else(|| {
-            Error::from_string(
-                "현재 활성 기간 예산이 없습니다.",
-                StatusCode::NOT_FOUND,
-            )
+            Error::from_string("현재 활성 기간 예산이 없습니다.", StatusCode::NOT_FOUND)
         })?;
 
     if !date_in_period(&transacted_at, &budget.from_date, &budget.to_date) {

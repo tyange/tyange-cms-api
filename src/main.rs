@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod budget;
 mod budget_periods;
+mod card_excel;
 mod db;
 mod middlewares;
 mod models;
@@ -28,6 +29,7 @@ use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
 use crate::routes::get_spending::get_spending;
 use crate::routes::get_tags_with_category::get_tags_with_category;
+use crate::routes::import_spending_excel::{commit_spending_import, preview_spending_import};
 use crate::routes::me::me;
 use crate::routes::signup::signup;
 use crate::routes::update_active_budget::update_active_budget;
@@ -122,6 +124,14 @@ async fn main() -> Result<(), std::io::Error> {
             .at(
                 "/budget/spending",
                 get(get_spending.with(Auth)).post(create_spending.with(JwtOrApiKeyAuth)),
+            )
+            .at(
+                "/budget/spending/import-preview",
+                post(preview_spending_import).with(Auth),
+            )
+            .at(
+                "/budget/spending/import-commit",
+                post(commit_spending_import).with(Auth),
             )
             .at(
                 "/budget/spending/:record_id",

@@ -231,6 +231,50 @@ pub struct SpendingListResponse {
     pub weeks: Vec<SpendingWeekGroup>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct SpendingImportPreviewSummary {
+    pub parsed_count: i64,
+    pub in_period_count: i64,
+    pub duplicate_count: i64,
+    pub new_count: i64,
+    pub out_of_period_count: i64,
+    pub invalid_count: i64,
+    pub new_amount_sum: i64,
+    pub new_net_amount_sum: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SpendingImportRow {
+    pub fingerprint: String,
+    pub transacted_at: Option<String>,
+    pub amount: Option<i64>,
+    pub merchant: Option<String>,
+    pub status: String,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SpendingImportPreviewResponse {
+    pub detected_source: String,
+    pub file_name: String,
+    pub summary: SpendingImportPreviewSummary,
+    pub rows: Vec<SpendingImportRow>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SpendingImportCommitResponse {
+    pub detected_source: String,
+    pub file_name: String,
+    pub inserted_count: i64,
+    pub skipped_duplicate_count: i64,
+    pub skipped_out_of_period_count: i64,
+    pub skipped_invalid_count: i64,
+    pub inserted_amount_sum: i64,
+    pub inserted_net_amount_sum: i64,
+    pub period_total_spent_from_records: i64,
+    pub budget_snapshot_total_spent_unchanged: bool,
+}
+
 #[derive(Debug, Serialize, FromRow)]
 pub struct BudgetSummaryResponse {
     pub budget_id: i64,

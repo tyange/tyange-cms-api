@@ -30,10 +30,7 @@ pub async fn get_spending(
             )
         })?
         .ok_or_else(|| {
-            Error::from_string(
-                "현재 활성 기간 예산이 없습니다.",
-                StatusCode::NOT_FOUND,
-            )
+            Error::from_string("현재 활성 기간 예산이 없습니다.", StatusCode::NOT_FOUND)
         })?;
 
     let records = query_as::<_, SpendingRecordResponse>(
@@ -56,14 +53,15 @@ pub async fn get_spending(
         )
     })?;
 
-    let total_spent = sum_spending_for_period(&data.db, &user.user_id, &budget.from_date, &budget.to_date)
-        .await
-        .map_err(|e| {
-            Error::from_string(
-                format!("기간 소비 합계 조회 실패: {}", e),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })?;
+    let total_spent =
+        sum_spending_for_period(&data.db, &user.user_id, &budget.from_date, &budget.to_date)
+            .await
+            .map_err(|e| {
+                Error::from_string(
+                    format!("기간 소비 합계 조회 실패: {}", e),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?;
 
     let mut grouped = BTreeMap::<String, Vec<SpendingRecordResponse>>::new();
     for record in records {

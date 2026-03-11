@@ -16,6 +16,7 @@ pub mod get_posts;
 pub mod get_posts_with_tags;
 pub mod get_spending;
 pub mod get_tags_with_category;
+pub mod import_spending_excel;
 pub mod login;
 pub mod me;
 pub mod signup;

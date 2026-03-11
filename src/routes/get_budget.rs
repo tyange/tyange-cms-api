@@ -8,7 +8,9 @@ use poem::{
 };
 
 use crate::{
-    budget_periods::{compute_budget_summary, get_active_budget_period, resolve_budget_total_spent},
+    budget_periods::{
+        compute_budget_summary, get_active_budget_period, resolve_budget_total_spent,
+    },
     models::{AppState, BudgetSummaryResponse},
 };
 use tyange_cms_api::auth::authorization::current_user;
@@ -28,10 +30,7 @@ pub async fn get_budget(
             )
         })?
         .ok_or_else(|| {
-            Error::from_string(
-                "현재 활성 기간 예산이 없습니다.",
-                StatusCode::NOT_FOUND,
-            )
+            Error::from_string("현재 활성 기간 예산이 없습니다.", StatusCode::NOT_FOUND)
         })?;
 
     let total_spent = resolve_budget_total_spent(&data.db, &user.user_id, &budget)

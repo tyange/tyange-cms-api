@@ -167,6 +167,12 @@ CORS preflight 처리.
 소비 기록 생성 및 기간 누적/남은 예산 계산.
 `transacted_at`는 현재 활성 예산 기간 안에 있어야 합니다.
 
+- `POST /budget/spending/import-preview` (JWT)
+신한카드 XLS 파일을 업로드해 미리보기 결과를 반환한다. 응답에는 `summary`, `rows`가 포함되며 각 row는 `fingerprint`, `transacted_at`, `amount`, `merchant`, `status`, `reason`을 가진다.
+
+- `POST /budget/spending/import-commit` (JWT)
+신한카드 XLS 파일과 `selected_fingerprints`를 함께 보내 선택한 거래만 반영한다. 이미 반영된 imported row는 중복으로 건너뛴다.
+
 - `PUT /budget/spending/:record_id`
 소비 기록 수정.
 
@@ -213,6 +219,13 @@ CORS preflight 처리.
 - 스냅샷이 저장된 예산은 `GET /budget`, `POST /budget/plan`, `PUT /budget` 응답에서 소비 기록 합계 대신 이 값을 사용한다.
 - `total_spent`를 생략하면 기존처럼 해당 기간의 `spending_records` 합계를 사용한다.
 - 따라서 스냅샷 값과 소비 기록 합계가 달라도 에러로 막지 않는다. 대시보드 수동 보정값을 우선해야 하는 요구사항에는 이 방식이 권장안이다.
+
+#### Spending import 정책
+
+- import 대상은 신한카드 XLS 거래내역이며 서버는 stateless하게 `preview -> commit` 2단계로 처리한다.
+- imported row는 `source_type='shinhancard_xls'`, `source_fingerprint`를 저장해 동일 거래 재업로드를 중복으로 막는다.
+- import는 `spending_records`만 갱신하고 `budget_periods.snapshot_total_spent`는 수정하지 않는다.
+- 따라서 스냅샷 예산을 사용하는 경우 `GET /budget.total_spent`와 `GET /budget/spending.total_spent`가 import 후에도 다를 수 있다.
 
 ## 테스트
 
