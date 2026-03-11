@@ -1011,6 +1011,19 @@ async fn spending_import_preview_reports_new_and_out_of_period_rows() {
     assert!(summary.get("new_count").i64() > 0);
     assert!(summary.get("out_of_period_count").i64() > 0);
     let rows = data.get("rows").array();
+    rows.assert_contains(|value| {
+        let object = value.object();
+        object.get("transacted_at").string() == "2026-03-03T12:20:00"
+            && object.get("amount").i64() == 8800
+            && object.get("merchant").string() == "씨유 역삼신웅점"
+            && object.get("fingerprint").string().contains("본인996*")
+    });
+    rows.assert_contains(|value| {
+        let object = value.object();
+        object.get("transacted_at").string() == "2026-03-02T19:09:00"
+            && object.get("amount").i64() == -19000
+            && object.get("merchant").string() == "㈜우아한형제들"
+    });
     rows.assert_contains(|value| value.object().get("status").string() == "new");
     rows.assert_contains(|value| value.object().get("status").string() == "out_of_period");
 }
