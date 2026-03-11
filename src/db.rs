@@ -99,7 +99,15 @@ async fn migrate_budget_periods(pool: &SqlitePool) -> std::result::Result<(), sq
         query("DROP TABLE budget_config").execute(pool).await?;
     }
 
-    create_budget_periods_table(pool).await
+    create_budget_periods_table(pool).await?;
+
+    if !column_exists(pool, "budget_periods", "snapshot_total_spent").await? {
+        query("ALTER TABLE budget_periods ADD COLUMN snapshot_total_spent INTEGER")
+            .execute(pool)
+            .await?;
+    }
+
+    Ok(())
 }
 
 async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
@@ -188,6 +196,7 @@ async fn create_budget_periods_table(pool: &SqlitePool) -> std::result::Result<(
             from_date DATE NOT NULL,
             to_date DATE NOT NULL,
             alert_threshold REAL NOT NULL DEFAULT 0.85,
+            snapshot_total_spent INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )

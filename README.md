@@ -147,12 +147,15 @@ CORS preflight 처리.
 
 - `GET /budget` (JWT)
 현재 활성 기간 예산 요약 조회.
+응답 필드:
+`budget_id`, `total_budget`, `from_date`, `to_date`, `total_spent`, `remaining_budget`, `usage_rate`, `alert`, `alert_threshold`, `is_overspent`
 
 - `PUT /budget` (JWT)
-현재 활성 기간 예산의 총액을 다시 설정한다. `alert_threshold`도 함께 수정할 수 있다.
+현재 활성 기간 예산의 총액을 다시 설정한다. `alert_threshold`와 현재까지의 누적 지출 스냅샷(`total_spent`)도 함께 수정할 수 있다.
+기간 필드(`from_date`, `to_date`)는 수정할 수 없다.
 
 - `POST /budget/plan` (JWT)
-기간 총예산을 생성한다.
+기간 총예산을 생성한다. 현재까지의 누적 지출 스냅샷(`total_spent`)도 함께 저장할 수 있다.
 
 - `POST /budget/card-excel/remaining-weekly-budget` (JWT)
 카드 엑셀 업로드 기반 순지출/잔여예산/주간 버킷 계산.
@@ -169,6 +172,47 @@ CORS preflight 처리.
 
 - `DELETE /budget/spending/:record_id`
 소비 기록 삭제.
+
+#### Budget request 예시
+
+`POST /budget/plan`
+
+```json
+{
+  "total_budget": 1500,
+  "from_date": "2026-04-01",
+  "to_date": "2026-04-30",
+  "total_spent": 400,
+  "alert_threshold": 0.9
+}
+```
+
+`PUT /budget`
+
+```json
+{
+  "total_budget": 1800,
+  "total_spent": 400,
+  "alert_threshold": 0.9
+}
+```
+
+`POST /budget/plan`, `PUT /budget`는 `total_spent`를 권장 필드명으로 사용한다.
+하위 호환을 위해 `spent_so_far`도 같은 의미의 alias로 허용한다.
+
+#### Budget 계산 규칙
+
+- `remaining_budget = total_budget - total_spent`
+- `is_overspent = total_spent > total_budget`
+- `usage_rate = total_spent / total_budget` (`total_budget > 0`)
+- `alert = usage_rate >= alert_threshold`
+
+#### Budget total_spent 정책
+
+- `total_spent`를 요청 바디에 넣으면, 이 값은 `budget_periods.snapshot_total_spent`에 저장되는 요약 스냅샷으로 취급한다.
+- 스냅샷이 저장된 예산은 `GET /budget`, `POST /budget/plan`, `PUT /budget` 응답에서 소비 기록 합계 대신 이 값을 사용한다.
+- `total_spent`를 생략하면 기존처럼 해당 기간의 `spending_records` 합계를 사용한다.
+- 따라서 스냅샷 값과 소비 기록 합계가 달라도 에러로 막지 않는다. 대시보드 수동 보정값을 우선해야 하는 요구사항에는 이 방식이 권장안이다.
 
 ## 테스트
 

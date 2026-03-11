@@ -8,7 +8,7 @@ use poem::{
 };
 
 use crate::{
-    budget_periods::{get_active_budget_period, sum_spending_for_period},
+    budget_periods::{compute_budget_summary, get_active_budget_period, resolve_budget_total_spent},
     models::{AppState, BudgetSummaryResponse},
 };
 use tyange_cms_api::auth::authorization::current_user;
@@ -34,7 +34,7 @@ pub async fn get_budget(
             )
         })?;
 
-    let total_spent = sum_spending_for_period(&data.db, &user.user_id, &budget.from_date, &budget.to_date)
+    let total_spent = resolve_budget_total_spent(&data.db, &user.user_id, &budget)
         .await
         .map_err(|e| {
             Error::from_string(
@@ -42,12 +42,7 @@ pub async fn get_budget(
                 StatusCode::INTERNAL_SERVER_ERROR,
             )
         })?;
-    let remaining_budget = budget.total_budget - total_spent;
-    let usage_rate_raw = if budget.total_budget > 0 {
-        total_spent as f64 / budget.total_budget as f64
-    } else {
-        0.0
-    };
+    let summary = compute_budget_summary(budget.total_budget, total_spent, budget.alert_threshold);
 
     Ok(Json(BudgetSummaryResponse {
         budget_id: budget.budget_id,
@@ -55,9 +50,10 @@ pub async fn get_budget(
         from_date: budget.from_date,
         to_date: budget.to_date,
         total_spent,
-        remaining_budget,
-        usage_rate: (usage_rate_raw * 1000.0).round() / 1000.0,
-        alert: usage_rate_raw >= budget.alert_threshold,
+        remaining_budget: summary.remaining_budget,
+        usage_rate: summary.usage_rate,
+        alert: summary.alert,
         alert_threshold: budget.alert_threshold,
+        is_overspent: summary.is_overspent,
     }))
 }

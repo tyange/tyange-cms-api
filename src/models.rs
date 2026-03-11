@@ -242,6 +242,7 @@ pub struct BudgetSummaryResponse {
     pub usage_rate: f64,
     pub alert: bool,
     pub alert_threshold: f64,
+    pub is_overspent: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -249,6 +250,8 @@ pub struct BudgetPlanRequest {
     pub total_budget: i64,
     pub from_date: String,
     pub to_date: String,
+    #[serde(alias = "spent_so_far")]
+    pub total_spent: Option<i64>,
     pub alert_threshold: Option<f64>,
 }
 
@@ -259,14 +262,19 @@ pub struct BudgetPlanResponse {
     pub from_date: String,
     pub to_date: String,
     pub daily_budget: f64,
-    pub spent_so_far: i64,
+    pub total_spent: i64,
     pub remaining_budget: i64,
+    pub usage_rate: f64,
+    pub alert: bool,
     pub alert_threshold: f64,
+    pub is_overspent: bool,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateActiveBudgetRequest {
     pub total_budget: i64,
+    #[serde(alias = "spent_so_far")]
+    pub total_spent: Option<i64>,
     pub alert_threshold: Option<f64>,
 }
 
@@ -278,6 +286,8 @@ pub struct UpdateActiveBudgetResponse {
     pub to_date: String,
     pub total_spent: i64,
     pub remaining_budget: i64,
+    pub usage_rate: f64,
+    pub alert: bool,
     pub alert_threshold: f64,
     pub is_overspent: bool,
 }

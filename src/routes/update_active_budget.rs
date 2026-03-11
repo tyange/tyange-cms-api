@@ -9,7 +9,7 @@ use poem::{
 use sqlx::query;
 
 use crate::{
-    budget_periods::{get_active_budget_period, sum_spending_for_period},
+    budget_periods::{compute_budget_summary, get_active_budget_period, resolve_budget_total_spent},
     models::{AppState, CustomResponse, UpdateActiveBudgetRequest, UpdateActiveBudgetResponse},
 };
 use tyange_cms_api::auth::authorization::current_user;
@@ -51,14 +51,34 @@ pub async fn update_active_budget(
             StatusCode::BAD_REQUEST,
         ));
     }
+    if matches!(payload.total_spent, Some(total_spent) if total_spent < 0) {
+        return Err(Error::from_string(
+            "total_spent는 0 이상이어야 합니다.",
+            StatusCode::BAD_REQUEST,
+        ));
+    }
+
+    let total_spent = match payload.total_spent {
+        Some(total_spent) => total_spent,
+        None => resolve_budget_total_spent(&data.db, &user.user_id, &budget)
+            .await
+            .map_err(|e| {
+                Error::from_string(
+                    format!("소비 합계 조회 실패: {}", e),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?,
+    };
+    let summary = compute_budget_summary(payload.total_budget, total_spent, alert_threshold);
 
     query(
         "UPDATE budget_periods
-         SET total_budget = ?, alert_threshold = ?, updated_at = CURRENT_TIMESTAMP
+         SET total_budget = ?, alert_threshold = ?, snapshot_total_spent = ?, updated_at = CURRENT_TIMESTAMP
          WHERE budget_id = ? AND owner_user_id = ?",
     )
     .bind(payload.total_budget)
     .bind(alert_threshold)
+    .bind(payload.total_spent)
     .bind(budget.budget_id)
     .bind(&user.user_id)
     .execute(&data.db)
@@ -70,16 +90,6 @@ pub async fn update_active_budget(
         )
     })?;
 
-    let total_spent = sum_spending_for_period(&data.db, &user.user_id, &budget.from_date, &budget.to_date)
-        .await
-        .map_err(|e| {
-            Error::from_string(
-                format!("소비 합계 조회 실패: {}", e),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })?;
-    let remaining_budget = payload.total_budget - total_spent;
-
     Ok(Json(CustomResponse {
         status: true,
         data: Some(UpdateActiveBudgetResponse {
@@ -88,9 +98,11 @@ pub async fn update_active_budget(
             from_date: budget.from_date,
             to_date: budget.to_date,
             total_spent,
-            remaining_budget,
+            remaining_budget: summary.remaining_budget,
+            usage_rate: summary.usage_rate,
+            alert: summary.alert,
             alert_threshold,
-            is_overspent: remaining_budget < 0,
+            is_overspent: summary.is_overspent,
         }),
         message: Some(String::from("현재 활성 기간 예산을 수정했습니다.")),
     }))

@@ -164,6 +164,42 @@ async fn migrates_legacy_api_keys_to_lookup_and_default_role() {
 }
 
 #[tokio::test]
+async fn migrates_budget_periods_to_add_snapshot_total_spent_column() {
+    let db = SqlitePool::connect("sqlite::memory:")
+        .await
+        .expect("failed to connect sqlite");
+
+    query(
+        r#"
+        CREATE TABLE budget_periods (
+            budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_user_id TEXT NOT NULL,
+            total_budget INTEGER NOT NULL,
+            from_date DATE NOT NULL,
+            to_date DATE NOT NULL,
+            alert_threshold REAL NOT NULL DEFAULT 0.85,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(&db)
+    .await
+    .expect("failed to create legacy budget_periods");
+
+    init_db(&db).await.expect("failed to migrate db");
+
+    let column_exists: i64 = query_scalar(
+        "SELECT COUNT(*) FROM pragma_table_info('budget_periods') WHERE name = 'snapshot_total_spent'",
+    )
+    .fetch_one(&db)
+    .await
+    .expect("failed to inspect budget_periods schema");
+
+    assert_eq!(column_exists, 1);
+}
+
+#[tokio::test]
 async fn budget_summary_uses_latest_budget_period_and_owner_scope() {
     let state = create_test_state().await;
     let cli = TestClient::new(create_budget_app(state.clone()));
@@ -228,7 +264,91 @@ async fn budget_summary_uses_latest_budget_period_and_owner_scope() {
     json.value().object().get("to_date").assert_string("2026-04-30");
     json.value().object().get("total_spent").assert_i64(400);
     json.value().object().get("remaining_budget").assert_i64(1600);
+    json.value().object().get("usage_rate").assert_f64(0.2);
+    json.value().object().get("alert").assert_bool(false);
     json.value().object().get("alert_threshold").assert_f64(0.75);
+    json.value().object().get("is_overspent").assert_bool(false);
+}
+
+#[tokio::test]
+async fn create_budget_plan_accepts_total_spent_snapshot() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("snapshot-create-user", "user");
+
+    let response = cli
+        .post("/budget/plan")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1500,
+            "from_date": "2026-04-01",
+            "to_date": "2026-04-30",
+            "total_spent": 400,
+            "alert_threshold": 0.9
+        }))
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    let data = json.value().object().get("data").object();
+    data.get("budget_id").assert_i64(1);
+    data.get("total_budget").assert_i64(1500);
+    data.get("from_date").assert_string("2026-04-01");
+    data.get("to_date").assert_string("2026-04-30");
+    data.get("total_spent").assert_i64(400);
+    data.get("remaining_budget").assert_i64(1100);
+    data.get("usage_rate").assert_f64(0.267);
+    data.get("alert").assert_bool(false);
+    data.get("alert_threshold").assert_f64(0.9);
+    data.get("is_overspent").assert_bool(false);
+
+    let budget = cli
+        .get("/budget")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    budget.assert_status_is_ok();
+    let budget_json = budget.json().await;
+    budget_json.value().object().get("total_spent").assert_i64(400);
+    budget_json.value().object().get("remaining_budget").assert_i64(1100);
+}
+
+#[tokio::test]
+async fn create_budget_plan_without_total_spent_uses_spending_sum() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("sum-create-user", "user");
+
+    query(
+        "INSERT INTO spending_records (owner_user_id, amount, merchant, transacted_at)
+         VALUES (?, ?, ?, ?)",
+    )
+    .bind("sum-create-user")
+    .bind(250_i64)
+    .bind("seeded")
+    .bind("2026-04-10 09:00:00")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed spending");
+
+    let response = cli
+        .post("/budget/plan")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1000,
+            "from_date": "2026-04-01",
+            "to_date": "2026-04-30"
+        }))
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    let data = json.value().object().get("data").object();
+    data.get("total_spent").assert_i64(250);
+    data.get("remaining_budget").assert_i64(750);
+    data.get("usage_rate").assert_f64(0.25);
 }
 
 #[tokio::test]
@@ -304,6 +424,8 @@ async fn update_active_budget_changes_total_budget_and_budget_summary() {
     data.get("total_budget").assert_i64(1500);
     data.get("total_spent").assert_i64(400);
     data.get("remaining_budget").assert_i64(1100);
+    data.get("usage_rate").assert_f64(0.267);
+    data.get("alert").assert_bool(false);
     data.get("alert_threshold").assert_f64(0.9);
     data.get("is_overspent").assert_bool(false);
 
@@ -317,7 +439,136 @@ async fn update_active_budget_changes_total_budget_and_budget_summary() {
     budget.value().object().get("total_budget").assert_i64(1500);
     budget.value().object().get("total_spent").assert_i64(400);
     budget.value().object().get("remaining_budget").assert_i64(1100);
+    budget.value().object().get("usage_rate").assert_f64(0.267);
+    budget.value().object().get("alert").assert_bool(false);
     budget.value().object().get("alert_threshold").assert_f64(0.9);
+    budget.value().object().get("is_overspent").assert_bool(false);
+}
+
+#[tokio::test]
+async fn update_active_budget_accepts_total_spent_snapshot() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("snapshot-update-user", "user");
+
+    cli.post("/budget/plan")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1000,
+            "from_date": "2026-04-01",
+            "to_date": "2026-04-30"
+        }))
+        .send()
+        .await
+        .assert_status_is_ok();
+
+    let response = cli
+        .put("/budget")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1800,
+            "total_spent": 400,
+            "alert_threshold": 0.9
+        }))
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    let data = json.value().object().get("data").object();
+    data.get("total_spent").assert_i64(400);
+    data.get("remaining_budget").assert_i64(1400);
+    data.get("usage_rate").assert_f64(0.222);
+    data.get("alert").assert_bool(false);
+    data.get("is_overspent").assert_bool(false);
+
+    let budget = cli
+        .get("/budget")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    budget.assert_status_is_ok();
+    let budget_json = budget.json().await;
+    budget_json.value().object().get("total_spent").assert_i64(400);
+    budget_json.value().object().get("remaining_budget").assert_i64(1400);
+}
+
+#[tokio::test]
+async fn update_active_budget_without_total_spent_keeps_spending_sum() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state.clone()));
+    let token = issue_access_token("sum-update-user", "user");
+
+    cli.post("/budget/plan")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1000,
+            "from_date": "2026-04-01",
+            "to_date": "2026-04-30"
+        }))
+        .send()
+        .await
+        .assert_status_is_ok();
+
+    cli.post("/budget/spending")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "amount": 300,
+            "merchant": "dinner",
+            "transacted_at": "2026-04-03T12:00:00"
+        }))
+        .send()
+        .await
+        .assert_status(StatusCode::CREATED);
+
+    let response = cli
+        .put("/budget")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 1200
+        }))
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    let data = json.value().object().get("data").object();
+    data.get("total_spent").assert_i64(300);
+    data.get("remaining_budget").assert_i64(900);
+}
+
+#[tokio::test]
+async fn budget_summary_marks_overspent_when_total_spent_exceeds_total_budget() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_budget_app(state));
+    let token = issue_access_token("overspent-user", "user");
+
+    cli.post("/budget/plan")
+        .header("Authorization", &token)
+        .body_json(&json!({
+            "total_budget": 500,
+            "from_date": "2026-04-01",
+            "to_date": "2026-04-30",
+            "total_spent": 700,
+            "alert_threshold": 0.9
+        }))
+        .send()
+        .await
+        .assert_status_is_ok();
+
+    let response = cli
+        .get("/budget")
+        .header("Authorization", &token)
+        .send()
+        .await;
+    response.assert_status_is_ok();
+
+    let json = response.json().await;
+    json.value().object().get("total_spent").assert_i64(700);
+    json.value().object().get("remaining_budget").assert_i64(-200);
+    json.value().object().get("usage_rate").assert_f64(1.4);
+    json.value().object().get("alert").assert_bool(true);
+    json.value().object().get("is_overspent").assert_bool(true);
 }
 
 #[tokio::test]
