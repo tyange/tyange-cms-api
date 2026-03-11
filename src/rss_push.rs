@@ -44,6 +44,10 @@ impl AppError {
     fn internal(message: impl Into<String>) -> Self {
         Self::new(StatusCode::INTERNAL_SERVER_ERROR, message)
     }
+
+    fn service_unavailable(message: impl Into<String>) -> Self {
+        Self::new(StatusCode::SERVICE_UNAVAILABLE, message)
+    }
 }
 
 #[derive(Debug, FromRow)]
@@ -121,7 +125,13 @@ impl PushConfig {
 
 pub fn push_public_key() -> Result<String, AppError> {
     env::var("VAPID_PUBLIC_KEY")
-        .map_err(|_| AppError::internal("VAPID_PUBLIC_KEY 환경변수가 설정되지 않았습니다."))
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            AppError::service_unavailable(
+                "푸시 알림이 아직 설정되지 않았습니다. VAPID_PUBLIC_KEY 환경변수를 확인해주세요.",
+            )
+        })
 }
 
 pub fn start_polling_worker(db: SqlitePool) {
@@ -1482,5 +1492,19 @@ mod tests {
                 .expect("failed to fetch revoked_at");
         assert!(revoked_at.is_some());
         env::remove_var("VAPID_PUBLIC_KEY");
+    }
+
+    #[tokio::test]
+    async fn push_public_key_endpoint_returns_503_when_vapid_key_is_missing() {
+        let _guard = env_lock().lock().expect("env lock");
+        env::remove_var("VAPID_PUBLIC_KEY");
+
+        let state = create_test_state().await;
+        let cli = TestClient::new(create_rss_app(state));
+
+        cli.get("/push/public-key")
+            .send()
+            .await
+            .assert_status(poem::http::StatusCode::SERVICE_UNAVAILABLE);
     }
 }
