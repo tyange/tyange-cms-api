@@ -134,6 +134,13 @@ fn parse_unstructured_row(row: &[String]) -> Option<ParsedCardTransactionRow> {
     let datetime_idx = row
         .iter()
         .position(|cell| parse_excel_datetime(cell).is_some())?;
+    if row
+        .iter()
+        .enumerate()
+        .any(|(idx, cell)| idx != datetime_idx && cell.trim().starts_with('-'))
+    {
+        return None;
+    }
     let amount_idx = row
         .iter()
         .enumerate()
@@ -244,7 +251,15 @@ fn parse_flat_rows(rows: &[Vec<String>]) -> Vec<ParsedCardTransactionRow> {
             continue;
         };
 
-        let amount_match = ((idx + 1)..usize::min(idx + 4, cells.len()))
+        let window_end = usize::min(idx + 4, cells.len());
+        if let Some(negative_idx) =
+            ((idx + 1)..window_end).find(|candidate_idx| cells[*candidate_idx].trim().starts_with('-'))
+        {
+            idx = negative_idx + 1;
+            continue;
+        }
+
+        let amount_match = ((idx + 1)..window_end)
             .filter_map(|amount_idx| {
                 parse_amount_from_string(&cells[amount_idx]).map(|amount| (amount_idx, amount))
             })
@@ -432,8 +447,11 @@ pub fn parse_amount_from_string(raw: &str) -> Option<i64> {
         return None;
     }
 
-    let is_negative =
-        (trimmed.starts_with('(') && trimmed.ends_with(')')) || trimmed.starts_with('-');
+    if trimmed.starts_with('-') {
+        return None;
+    }
+
+    let is_negative = trimmed.starts_with('(') && trimmed.ends_with(')');
 
     let filtered = trimmed
         .chars()
@@ -459,7 +477,7 @@ pub fn parse_amount_from_string(raw: &str) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{analyze_excel_bytes, parse_flat_rows, parse_structured_rows};
+    use super::{analyze_excel_bytes, parse_amount_from_string, parse_flat_rows, parse_structured_rows};
 
     #[test]
     fn parses_shinhancard_style_flat_rows() {
@@ -473,9 +491,8 @@ mod tests {
         ];
 
         let parsed = parse_flat_rows(&rows);
-        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0].amount, 7000);
-        assert_eq!(parsed[1].amount, -19000);
         assert!(parsed[0].merchant.is_none());
     }
 
@@ -539,13 +556,11 @@ mod tests {
         ];
 
         let parsed = parse_structured_rows(&rows);
-        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0].amount, 8800);
         assert_eq!(parsed[0].merchant.as_deref(), Some("씨유 역삼신웅점"));
         assert!(parsed[0].fingerprint.contains("본인996*"));
         assert!(!parsed[0].fingerprint.ends_with("|996"));
-        assert_eq!(parsed[1].amount, -19000);
-        assert_eq!(parsed[1].merchant.as_deref(), Some("㈜우아한형제들"));
     }
 
     #[test]
@@ -566,10 +581,16 @@ mod tests {
                 && row.merchant.as_deref() == Some("씨유 역삼신웅점")
                 && row.fingerprint.contains("본인996*")
         }));
-        assert!(parsed.rows.iter().any(|row| {
+        assert!(!parsed.rows.iter().any(|row| {
             row.transacted_at.format("%Y-%m-%dT%H:%M:%S").to_string() == "2026-03-02T19:09:00"
-                && row.amount == -19000
                 && row.merchant.as_deref() == Some("㈜우아한형제들")
         }));
+    }
+
+    #[test]
+    fn ignores_negative_amounts_prefixed_with_dash() {
+        assert_eq!(parse_amount_from_string("-19000"), None);
+        assert_eq!(parse_amount_from_string("-000000000019000"), None);
+        assert_eq!(parse_amount_from_string("(19000)"), Some(-19000));
     }
 }
