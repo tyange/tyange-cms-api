@@ -24,8 +24,8 @@ pub async fn create_user(
 
     query(
         r#"
-        INSERT INTO users (user_id, password, user_role)
-        VALUES (?, ?, ?)
+        INSERT INTO users (user_id, password, user_role, auth_provider)
+        VALUES (?, ?, ?, 'local')
         "#,
     )
     .bind(user_id)

@@ -79,6 +79,11 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct GoogleLoginRequest {
+    pub id_token: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct LoginResponse {
     pub access_token: String,

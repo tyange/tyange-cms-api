@@ -24,6 +24,7 @@ pub mod get_spending;
 pub mod get_tags_with_category;
 pub mod import_spending_excel;
 pub mod login;
+pub mod login_google;
 pub mod me;
 pub mod signup;
 pub mod update_active_budget;

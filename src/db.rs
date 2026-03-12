@@ -44,8 +44,10 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
         r#"
           CREATE TABLE IF NOT EXISTS users (
               user_id TEXT PRIMARY KEY,
-              password TEXT NOT NULL,
-              user_role TEXT NOT NULL
+              password TEXT,
+              user_role TEXT NOT NULL,
+              auth_provider TEXT NOT NULL DEFAULT 'local',
+              google_sub TEXT
           )
           "#,
     )
@@ -89,6 +91,7 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     migrate_spending_records(pool)
         .await
         .map_err(InternalServerError)?;
+    migrate_users(pool).await.map_err(InternalServerError)?;
     migrate_api_keys(pool).await.map_err(InternalServerError)?;
     migrate_rss_push(pool).await.map_err(InternalServerError)?;
 
@@ -342,6 +345,89 @@ async fn ensure_spending_record_indexes(pool: &SqlitePool) -> std::result::Resul
         CREATE UNIQUE INDEX IF NOT EXISTS idx_spending_records_import_fingerprint
         ON spending_records(owner_user_id, source_type, source_fingerprint)
         WHERE source_type IS NOT NULL AND source_fingerprint IS NOT NULL
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn migrate_users(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    if !table_exists(pool, "users").await? {
+        create_users_table(pool).await?;
+        return Ok(());
+    }
+
+    let has_auth_provider = column_exists(pool, "users", "auth_provider").await?;
+    let has_google_sub = column_exists(pool, "users", "google_sub").await?;
+
+    if has_auth_provider && has_google_sub {
+        ensure_user_indexes(pool).await?;
+        return Ok(());
+    }
+
+    query("DROP TABLE IF EXISTS users_new")
+        .execute(pool)
+        .await?;
+    query(
+        r#"
+        CREATE TABLE users_new (
+            user_id TEXT PRIMARY KEY,
+            password TEXT,
+            user_role TEXT NOT NULL,
+            auth_provider TEXT NOT NULL DEFAULT 'local',
+            google_sub TEXT
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    query(
+        r#"
+        INSERT INTO users_new (user_id, password, user_role, auth_provider, google_sub)
+        SELECT user_id, password, user_role, 'local', NULL
+        FROM users
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    query("DROP TABLE users").execute(pool).await?;
+    query("ALTER TABLE users_new RENAME TO users")
+        .execute(pool)
+        .await?;
+    ensure_user_indexes(pool).await?;
+
+    Ok(())
+}
+
+async fn create_users_table(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    query(
+        r#"
+        CREATE TABLE IF NOT EXISTS users (
+            user_id TEXT PRIMARY KEY,
+            password TEXT,
+            user_role TEXT NOT NULL,
+            auth_provider TEXT NOT NULL DEFAULT 'local',
+            google_sub TEXT
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+    ensure_user_indexes(pool).await?;
+
+    Ok(())
+}
+
+async fn ensure_user_indexes(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    query(
+        r#"
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub
+        ON users(google_sub)
+        WHERE google_sub IS NOT NULL
         "#,
     )
     .execute(pool)

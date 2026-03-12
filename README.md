@@ -36,6 +36,9 @@ UPLOAD_PATH=.uploads/images
 JWT_ACCESS_SECRET=replace-with-access-secret
 JWT_REFRESH_SECRET=replace-with-refresh-secret
 
+# Google Login
+GOOGLE_CLIENT_ID=replace-with-google-oauth-client-id
+
 # Web Push (RSS 기반 브라우저 푸시)
 VAPID_PUBLIC_KEY=replace-with-vapid-public-key
 VAPID_PRIVATE_KEY=replace-with-vapid-private-key
@@ -117,6 +120,10 @@ CORS preflight 처리.
 
 - `POST /login`
 사용자 로그인 후 access/refresh 토큰 발급.
+
+- `POST /login/google`
+프론트엔드가 Google Sign-In 후 받은 `id_token`을 전달하면, 서버가 토큰을 검증한 뒤 access/refresh 토큰을 발급합니다.
+동일 이메일의 기존 로컬 계정이 있으면 해당 계정에 Google 로그인을 연결합니다.
 
 - `POST /admin/add-user` (JWT)
 신규 사용자 계정 추가(비밀번호 해시 저장).
@@ -261,6 +268,14 @@ cargo test
 curl -sS -X POST http://127.0.0.1:8080/login \
   -H 'Content-Type: application/json' \
   -d '{"user_id":"me@example.com","password":"secret"}'
+```
+
+### Google 로그인 후 JWT 획득
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/login/google \
+  -H 'Content-Type: application/json' \
+  -d '{"id_token":"GOOGLE_ID_TOKEN_FROM_FRONTEND"}'
 ```
 
 ### API Key 발급

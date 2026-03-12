@@ -16,6 +16,57 @@ use crate::{
     AppState,
 };
 
+pub fn issue_login_response(user_id: &str, user_role: &str) -> Result<LoginResponse, poem::Error> {
+    let access_token_secret = match env::var("JWT_ACCESS_SECRET") {
+        Ok(value) => value,
+        Err(e) => {
+            eprintln!("Server configuration error: {:?}", e);
+            return Err(poem::Error::from_string(
+                "Server configuration error.",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ));
+        }
+    };
+    let refresh_token_secret = match env::var("JWT_REFRESH_SECRET") {
+        Ok(value) => value,
+        Err(e) => {
+            eprintln!("Server configuration error: {:?}", e);
+            return Err(poem::Error::from_string(
+                "Server configuration error.",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ));
+        }
+    };
+
+    let access_token_secret_bytes = access_token_secret.as_bytes();
+    let access_token = Claims::create_access_token(user_id, user_role, access_token_secret_bytes)
+        .map_err(|e| {
+        eprintln!("Server configuration error: {:?}", e);
+        poem::Error::from_string(
+            "Can not create access token.",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })?;
+
+    let refresh_token_secret_bytes = refresh_token_secret.as_bytes();
+    let refresh_token =
+        Claims::create_refresh_token(user_id, user_role, refresh_token_secret_bytes).map_err(
+            |e| {
+                eprintln!("Server configuration error: {:?}", e);
+                poem::Error::from_string(
+                    "Can not create refresh token.",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            },
+        )?;
+
+    Ok(LoginResponse {
+        access_token,
+        refresh_token,
+        user_role: user_role.to_string(),
+    })
+}
+
 #[handler]
 pub async fn login(
     Json(payload): Json<LoginRequest>,
@@ -45,61 +96,16 @@ pub async fn login(
     };
 
     let user_id: String = row.try_get("user_id").unwrap_or_default();
-    let stored_hash: String = row.try_get("password").unwrap_or_default();
+    let stored_hash: Option<String> = row.try_get("password").unwrap_or(None);
     let user_role: String = row.try_get("user_role").unwrap_or_default();
 
-    let password_matches = verify(&payload.password, &stored_hash).unwrap_or(false);
+    let password_matches = stored_hash
+        .as_deref()
+        .map(|stored_hash| verify(&payload.password, stored_hash).unwrap_or(false))
+        .unwrap_or(false);
 
     if password_matches {
-        let access_token_secret = match env::var("JWT_ACCESS_SECRET") {
-            Ok(value) => value,
-            Err(e) => {
-                eprintln!("Server configuration error: {:?}", e);
-                return Err(poem::Error::from_string(
-                    "Server configuration error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ));
-            }
-        };
-        let refresh_token_secret = match env::var("JWT_REFRESH_SECRET") {
-            Ok(value) => value,
-            Err(e) => {
-                eprintln!("Server configuration error: {:?}", e);
-                return Err(poem::Error::from_string(
-                    "Server configuration error.",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ));
-            }
-        };
-
-        let access_token_secret_bytes = access_token_secret.as_bytes();
-        let access_token =
-            Claims::create_access_token(&user_id, &user_role, &access_token_secret_bytes).map_err(
-                |e| {
-                    eprintln!("Server configuration error: {:?}", e);
-                    poem::Error::from_string(
-                        "Can not create access token.",
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    )
-                },
-            )?;
-
-        let refresh_token_secret_bytes = refresh_token_secret.as_bytes();
-        let refresh_token =
-            Claims::create_refresh_token(&user_id, &user_role, &refresh_token_secret_bytes)
-                .map_err(|e| {
-                    eprintln!("Server configuration error: {:?}", e);
-                    poem::Error::from_string(
-                        "Can not create refresh token.",
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    )
-                })?;
-
-        let login_response = LoginResponse {
-            access_token,
-            refresh_token,
-            user_role,
-        };
+        let login_response = issue_login_response(&user_id, &user_role)?;
 
         let json_body = serde_json::to_string(&login_response).map_err(|_| {
             poem::Error::from_string(

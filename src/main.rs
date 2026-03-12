@@ -52,7 +52,10 @@ use poem::{
     delete, endpoint::StaticFilesEndpoint, get, handler, http::StatusCode, listener::TcpListener,
     middleware::Cors, options, post, put, EndpointExt, Response, Route, Server,
 };
-use routes::{get_post::get_post, get_posts::get_posts, login::login, upload_post::upload_post};
+use routes::{
+    get_post::get_post, get_posts::get_posts, login::login, login_google::login_google,
+    upload_post::upload_post,
+};
 use rss_push::start_polling_worker;
 use sqlx::SqlitePool;
 
@@ -113,6 +116,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/upload-image", post(upload_image).with(Auth))
             .at("/images/upload", post(upload_image).with(Auth))
             .at("/login", post(login))
+            .at("/login/google", post(login_google))
             .at("/signup", post(signup))
             .at("/me", get(me).with(Auth))
             .at(
