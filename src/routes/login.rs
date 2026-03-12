@@ -1,6 +1,6 @@
 use std::{env, sync::Arc};
 
-use bcrypt::verify;
+use bcrypt::{hash, verify, DEFAULT_COST};
 use poem::{
     handler,
     http::StatusCode,
@@ -99,12 +99,17 @@ pub async fn login(
     let stored_hash: Option<String> = row.try_get("password").unwrap_or(None);
     let user_role: String = row.try_get("user_role").unwrap_or_default();
 
-    let password_matches = stored_hash
-        .as_deref()
-        .map(|stored_hash| verify(&payload.password, stored_hash).unwrap_or(false))
-        .unwrap_or(false);
+    let password_matches = matches_password(&payload.password, stored_hash.as_deref());
 
     if password_matches {
+        upgrade_legacy_password_if_needed(
+            &data.db,
+            &user_id,
+            &payload.password,
+            stored_hash.as_deref(),
+        )
+        .await?;
+
         let login_response = issue_login_response(&user_id, &user_role)?;
 
         let json_body = serde_json::to_string(&login_response).map_err(|_| {
@@ -128,4 +133,60 @@ pub async fn login(
                 "로그인 실패: 잘못된 비밀번호",
             ))))
     }
+}
+
+fn matches_password(candidate_password: &str, stored_password: Option<&str>) -> bool {
+    let Some(stored_password) = stored_password else {
+        return false;
+    };
+
+    if is_bcrypt_hash(stored_password) {
+        verify(candidate_password, stored_password).unwrap_or(false)
+    } else {
+        candidate_password == stored_password
+    }
+}
+
+async fn upgrade_legacy_password_if_needed(
+    db: &sqlx::SqlitePool,
+    user_id: &str,
+    candidate_password: &str,
+    stored_password: Option<&str>,
+) -> Result<(), poem::Error> {
+    let Some(stored_password) = stored_password else {
+        return Ok(());
+    };
+
+    if is_bcrypt_hash(stored_password) || candidate_password != stored_password {
+        return Ok(());
+    }
+
+    let upgraded_hash = hash(candidate_password, DEFAULT_COST).map_err(|e| {
+        poem::Error::from_string(
+            format!("Password hashing failed: {}", e),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })?;
+
+    sqlx::query(
+        r#"
+        UPDATE users
+        SET password = ?, auth_provider = COALESCE(NULLIF(auth_provider, ''), 'local')
+        WHERE user_id = ?
+        "#,
+    )
+    .bind(upgraded_hash)
+    .bind(user_id)
+    .execute(db)
+    .await
+    .map_err(|e| {
+        eprintln!("Database error while upgrading legacy password: {:?}", e);
+        poem::Error::from_string("Database error", StatusCode::INTERNAL_SERVER_ERROR)
+    })?;
+
+    Ok(())
+}
+
+fn is_bcrypt_hash(value: &str) -> bool {
+    value.starts_with("$2a$") || value.starts_with("$2b$") || value.starts_with("$2y$")
 }

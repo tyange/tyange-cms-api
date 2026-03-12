@@ -230,6 +230,45 @@ async fn login_and_me_return_current_user() {
 }
 
 #[tokio::test]
+async fn login_accepts_legacy_plaintext_password_and_upgrades_hash() {
+    let state = create_test_state().await;
+    let cli = TestClient::new(create_auth_app(state.clone()));
+
+    query(
+        r#"
+        INSERT INTO users (user_id, password, user_role, auth_provider, google_sub)
+        VALUES (?, ?, 'admin', 'local', NULL)
+        "#,
+    )
+    .bind("admin-legacy")
+    .bind("plaintext-password")
+    .execute(&state.db)
+    .await
+    .expect("failed to insert legacy admin");
+
+    let response = cli
+        .post("/login")
+        .body_json(&json!({
+            "user_id": "admin-legacy",
+            "password": "plaintext-password"
+        }))
+        .send()
+        .await;
+
+    response.assert_status_is_ok();
+
+    let stored_password: String = query_scalar("SELECT password FROM users WHERE user_id = ?")
+        .bind("admin-legacy")
+        .fetch_one(&state.db)
+        .await
+        .expect("failed to fetch upgraded password");
+
+    assert_ne!(stored_password, "plaintext-password");
+    assert!(stored_password.starts_with("$2"));
+    assert!(verify("plaintext-password", &stored_password).expect("bcrypt verify should work"));
+}
+
+#[tokio::test]
 async fn google_login_creates_new_user_and_returns_tokens() {
     let state = create_test_state().await;
     let cli = TestClient::new(create_auth_app(state.clone()));
