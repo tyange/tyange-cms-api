@@ -328,6 +328,33 @@ async fn visible_publish_triggers_dispatch_once() {
 }
 
 #[tokio::test]
+async fn visible_publish_with_dev_tag_does_not_trigger_dispatch() {
+    let (blog_redeploy, mock_handle) = BlogRedeployService::mock();
+    let state = create_test_state_with_redeploy(blog_redeploy).await;
+    let cli = TestClient::new(create_test_app(state));
+
+    let response = cli
+        .post("/post/upload")
+        .header(
+            "Authorization",
+            issue_access_token("writer-visible-dev", "user"),
+        )
+        .body_json(&json!({
+            "title": "published dev post",
+            "description": "desc",
+            "published_at": "2026-03-12T00:00:00Z",
+            "tags": [{ "tag": "dev", "category": "series" }],
+            "content": "body",
+            "status": "published"
+        }))
+        .send()
+        .await;
+
+    response.assert_status_is_ok();
+    assert!(mock_handle.take_calls().await.is_empty());
+}
+
+#[tokio::test]
 async fn visible_update_triggers_dispatch_once() {
     let (blog_redeploy, mock_handle) = BlogRedeployService::mock();
     let state = create_test_state_with_redeploy(blog_redeploy).await;
@@ -373,7 +400,55 @@ async fn visible_update_triggers_dispatch_once() {
 }
 
 #[tokio::test]
-async fn draft_only_update_does_not_trigger_dispatch() {
+async fn visible_update_to_dev_tag_triggers_delete_dispatch_once() {
+    let (blog_redeploy, mock_handle) = BlogRedeployService::mock();
+    let state = create_test_state_with_redeploy(blog_redeploy).await;
+    query(
+        r#"
+        INSERT INTO posts (post_id, title, description, published_at, content, writer_id, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind("post-visible-to-dev")
+    .bind("title")
+    .bind("description")
+    .bind("2026-03-07T00:00:00Z")
+    .bind("content")
+    .bind("owner-visible-dev")
+    .bind("published")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed published post");
+
+    let cli = TestClient::new(create_test_app(state));
+    let response = cli
+        .put("/post/update/post-visible-to-dev")
+        .header(
+            "Authorization",
+            issue_access_token("owner-visible-dev", "user"),
+        )
+        .body_json(&json!({
+            "title": "title",
+            "description": "description",
+            "published_at": "2026-03-07T00:00:00Z",
+            "tags": [{ "tag": "dev", "category": "series" }],
+            "content": "content",
+            "status": "published"
+        }))
+        .send()
+        .await;
+
+    response.assert_status_is_ok();
+
+    let calls = mock_handle.take_calls().await;
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].content_event, BlogContentEvent::Delete);
+    assert_eq!(calls[0].post_id, "post-visible-to-dev");
+    assert_eq!(calls[0].visibility, BlogVisibility::Hidden);
+}
+
+#[tokio::test]
+async fn draft_or_dev_only_update_does_not_trigger_dispatch() {
     let (blog_redeploy, mock_handle) = BlogRedeployService::mock();
     let state = create_test_state_with_redeploy(blog_redeploy).await;
     query(
@@ -401,7 +476,7 @@ async fn draft_only_update_does_not_trigger_dispatch() {
             "title": "title updated",
             "description": "description updated",
             "published_at": "2026-03-08T00:00:00Z",
-            "tags": [],
+            "tags": [{ "tag": "dev", "category": "series" }],
             "content": "content updated",
             "status": "draft"
         }))

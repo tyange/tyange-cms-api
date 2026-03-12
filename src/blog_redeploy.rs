@@ -273,6 +273,17 @@ pub fn is_publicly_visible(status: &str) -> bool {
     !status.trim().eq_ignore_ascii_case("draft")
 }
 
+pub fn is_blog_redeploy_target<'a, I>(status: &str, tags: I) -> bool
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    is_publicly_visible(status) && !tags.into_iter().any(is_dev_tag)
+}
+
+fn is_dev_tag(tag: &str) -> bool {
+    tag.trim().eq_ignore_ascii_case("dev")
+}
+
 #[cfg(test)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MockDispatchCall {

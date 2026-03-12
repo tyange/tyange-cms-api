@@ -143,15 +143,15 @@ CORS preflight 처리.
 
 - `POST /post/upload` (JWT)
 새 포스트 작성 및 태그 연결.
-공개 상태(`status != draft`)로 저장되면 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
+공개 상태(`status != draft`)이면서 `dev` 태그가 없으면 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
 
 - `PUT /post/update/:post_id` (JWT)
 본인 포스트 내용/태그 수정.
-기존 공개 포스트의 공개 필드가 바뀌거나, draft에서 공개로 전환되거나, 공개 포스트가 draft로 내려가면 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
+blog 대상 포스트 판정은 `status != draft` 이고 `dev` 태그가 없는 경우다. 이 기준으로 draft에서 공개로 전환되거나, 공개 필드가 바뀌거나, `dev` 태그 추가/삭제 때문에 blog 포함 여부가 바뀌면 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
 
 - `DELETE /post/delete/:post_id` (JWT)
 본인 포스트 삭제.
-삭제 전 공개 상태였던 포스트만 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
+삭제 전 blog 대상 포스트였던 경우만 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
 
 - `GET /admin/posts` (JWT)
 관리자용 전체 포스트 목록 조회(초안 포함).
@@ -251,7 +251,7 @@ CORS preflight 처리.
 cargo test
 ```
 
-게시글 테스트에는 공개 포스트 publish/update 시 blog rebuild trigger가 1회만 발생하는지, draft-only update는 trigger하지 않는지, dispatch 실패가 있어도 CMS 저장은 유지되는지가 포함됩니다.
+게시글 테스트에는 `dev` 태그 제외 규칙을 반영한 publish/update/delete trigger 조건과, dispatch 실패가 있어도 CMS 저장은 유지되는지가 포함됩니다.
 
 ## curl 예시
 

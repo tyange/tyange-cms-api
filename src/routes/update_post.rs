@@ -1,4 +1,4 @@
-use crate::blog_redeploy::{is_publicly_visible, BlogContentEvent, BlogVisibility};
+use crate::blog_redeploy::{is_blog_redeploy_target, BlogContentEvent, BlogVisibility};
 use crate::models::{
     CustomResponse, Post, PostResponseDb, Tag, TagWithCategory, UpdatePostRequest,
 };
@@ -199,8 +199,14 @@ fn determine_redeploy_event(
     existing_post: &ExistingPostSnapshot,
     payload: &UpdatePostRequest,
 ) -> Option<(BlogContentEvent, BlogVisibility)> {
-    let was_visible = is_publicly_visible(&existing_post.status);
-    let is_visible = is_publicly_visible(&payload.status);
+    let was_visible = is_blog_redeploy_target(
+        &existing_post.status,
+        existing_post.tags.iter().map(|(_, tag)| tag.as_str()),
+    );
+    let is_visible = is_blog_redeploy_target(
+        &payload.status,
+        payload.tags.iter().map(|tag| tag.tag.as_str()),
+    );
 
     match (was_visible, is_visible) {
         (false, true) => Some((BlogContentEvent::Publish, BlogVisibility::Visible)),

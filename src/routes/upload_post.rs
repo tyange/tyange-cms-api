@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    blog_redeploy::{is_publicly_visible, BlogContentEvent, BlogVisibility},
+    blog_redeploy::{is_blog_redeploy_target, BlogContentEvent, BlogVisibility},
     models::{CustomResponse, UploadPostRequest, UploadPostResponse},
     AppState,
 };
@@ -96,7 +96,10 @@ pub async fn upload_post(
         )
     })?;
 
-    if is_publicly_visible(&payload.status) {
+    if is_blog_redeploy_target(
+        &payload.status,
+        payload.tags.iter().map(|tag| tag.tag.as_str()),
+    ) {
         data.blog_redeploy
             .dispatch_content_change(BlogContentEvent::Publish, &post_id, BlogVisibility::Visible)
             .await;
