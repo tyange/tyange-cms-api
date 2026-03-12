@@ -40,6 +40,7 @@ JWT_REFRESH_SECRET=replace-with-refresh-secret
 VAPID_PUBLIC_KEY=replace-with-vapid-public-key
 VAPID_PRIVATE_KEY=replace-with-vapid-private-key
 VAPID_SUBJECT=mailto:you@example.com
+
 ```
 
 `DATABASE_PATH`, `UPLOAD_PATH`는 절대 경로로 직접 지정해도 됩니다.
@@ -142,12 +143,15 @@ CORS preflight 처리.
 
 - `POST /post/upload` (JWT)
 새 포스트 작성 및 태그 연결.
+공개 상태(`status != draft`)로 저장되면 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
 
 - `PUT /post/update/:post_id` (JWT)
 본인 포스트 내용/태그 수정.
+기존 공개 포스트의 공개 필드가 바뀌거나, draft에서 공개로 전환되거나, 공개 포스트가 draft로 내려가면 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
 
 - `DELETE /post/delete/:post_id` (JWT)
 본인 포스트 삭제.
+삭제 전 공개 상태였던 포스트만 커밋 직후 `tyange-blog` rebuild trigger를 보낸다.
 
 - `GET /admin/posts` (JWT)
 관리자용 전체 포스트 목록 조회(초안 포함).
@@ -247,7 +251,7 @@ CORS preflight 처리.
 cargo test
 ```
 
-현재 테스트는 JWT 생성/검증 기본 동작 중심입니다.
+게시글 테스트에는 공개 포스트 publish/update 시 blog rebuild trigger가 1회만 발생하는지, draft-only update는 trigger하지 않는지, dispatch 실패가 있어도 CMS 저장은 유지되는지가 포함됩니다.
 
 ## curl 예시
 

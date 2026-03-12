@@ -1,9 +1,10 @@
+use crate::blog_redeploy::{is_publicly_visible, BlogContentEvent, BlogVisibility};
 use crate::models::{CustomResponse, DeletePostResponse};
 use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json, Path};
 use poem::{handler, Error, Request};
-use sqlx::query;
+use sqlx::{query, query_scalar};
 use std::sync::Arc;
 use tyange_cms_api::auth::authorization::{current_user, ensure_post_owner};
 
@@ -15,6 +16,17 @@ pub async fn delete_post(
 ) -> Result<Json<CustomResponse<DeletePostResponse>>, Error> {
     let user = current_user(req)?;
     ensure_post_owner(user, &post_id, &data.db).await?;
+    let existing_status: String = query_scalar("SELECT status FROM posts WHERE post_id = ?")
+        .bind(&post_id)
+        .fetch_one(&data.db)
+        .await
+        .map_err(|err| {
+            eprintln!("Error fetch post status before delete: {}", err);
+            Error::from_string(
+                "게시글 상태 조회에 실패했습니다.",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        })?;
 
     let result = query(
         r#"
@@ -32,6 +44,16 @@ pub async fn delete_post(
                     "게시글을 찾을 수 없습니다.",
                     StatusCode::NOT_FOUND,
                 ));
+            }
+
+            if is_publicly_visible(&existing_status) {
+                data.blog_redeploy
+                    .dispatch_content_change(
+                        BlogContentEvent::Delete,
+                        &post_id,
+                        BlogVisibility::Hidden,
+                    )
+                    .await;
             }
 
             Ok(Json(CustomResponse {

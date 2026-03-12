@@ -3,8 +3,25 @@ use serde_json::Value;
 use sqlx::{FromRow, Pool, Sqlite};
 use std::collections::HashMap;
 
+use crate::blog_redeploy::BlogRedeployService;
+
 pub struct AppState {
     pub db: Pool<Sqlite>,
+    pub blog_redeploy: BlogRedeployService,
+}
+
+impl AppState {
+    pub fn new(db: Pool<Sqlite>) -> Self {
+        Self {
+            db,
+            blog_redeploy: BlogRedeployService::from_env(),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new_with_blog_redeploy(db: Pool<Sqlite>, blog_redeploy: BlogRedeployService) -> Self {
+        Self { db, blog_redeploy }
+    }
 }
 
 #[derive(Debug, Serialize)]

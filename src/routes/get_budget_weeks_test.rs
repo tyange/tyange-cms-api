@@ -11,7 +11,7 @@ async fn returns_empty_payload_when_no_budget_week_exists() {
         .expect("failed to connect sqlite");
     init_db(&db).await.expect("failed to init db");
 
-    let state = Arc::new(AppState { db });
+    let state = Arc::new(AppState::new(db));
     let response = build_budget_weeks_response(&poem::web::Data(&state), "user-1")
         .await
         .expect("handler should succeed");
@@ -45,7 +45,7 @@ async fn returns_sorted_weeks_with_min_and_max() {
     .await
     .expect("failed to seed budget_config");
 
-    let state = Arc::new(AppState { db });
+    let state = Arc::new(AppState::new(db));
     let response = build_budget_weeks_response(&poem::web::Data(&state), "user-1")
         .await
         .expect("handler should succeed");

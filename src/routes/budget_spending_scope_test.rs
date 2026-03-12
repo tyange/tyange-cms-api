@@ -39,7 +39,7 @@ async fn create_test_state() -> Arc<AppState> {
         .await
         .expect("failed to connect sqlite");
     init_db(&db).await.expect("failed to init db");
-    Arc::new(AppState { db })
+    Arc::new(AppState::new(db))
 }
 
 fn create_budget_app(state: Arc<AppState>) -> impl Endpoint {

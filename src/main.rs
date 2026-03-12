@@ -1,3 +1,4 @@
+mod blog_redeploy;
 #[cfg(test)]
 mod budget;
 mod budget_periods;
@@ -88,7 +89,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     start_polling_worker(db.clone());
 
-    let state = Arc::new(AppState { db });
+    let state = Arc::new(AppState::new(db));
 
     fn configure_routes() -> Route {
         let upload_base_path = env::var("UPLOAD_PATH").unwrap_or(String::from(".uploads/images"));
