@@ -96,19 +96,21 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
 }
 
 async fn migrate_budget_periods(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
-    if table_exists(pool, "budget_config").await? {
-        query("DROP TABLE budget_config").execute(pool).await?;
-    }
-
     if !table_exists(pool, "budget_periods").await? {
         create_budget_periods_table(pool).await?;
         return Ok(());
     }
 
+    if !column_exists(pool, "budget_periods", "snapshot_total_spent").await? {
+        ensure_budget_period_indexes(pool).await?;
+        return Ok(());
+    }
+
+    if table_exists(pool, "budget_periods_new").await? {
+        query("DROP TABLE budget_periods_new").execute(pool).await?;
+    }
+
     if column_exists(pool, "budget_periods", "snapshot_total_spent").await? {
-        query("DROP TABLE IF EXISTS budget_periods_new")
-            .execute(pool)
-            .await?;
         query(
             r#"
             CREATE TABLE budget_periods_new (
@@ -157,14 +159,7 @@ async fn migrate_budget_periods(pool: &SqlitePool) -> std::result::Result<(), sq
             .await?;
     }
 
-    query(
-        r#"
-        CREATE INDEX IF NOT EXISTS idx_budget_periods_owner_updated_at
-        ON budget_periods(owner_user_id, updated_at DESC, budget_id DESC)
-        "#,
-    )
-    .execute(pool)
-    .await?;
+    ensure_budget_period_indexes(pool).await?;
 
     Ok(())
 }
@@ -179,10 +174,18 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
     let has_source_type = column_exists(pool, "spending_records", "source_type").await?;
     let has_source_fingerprint =
         column_exists(pool, "spending_records", "source_fingerprint").await?;
+    let has_week_key = column_exists(pool, "spending_records", "week_key").await?;
 
-    query("DROP TABLE IF EXISTS spending_records_new")
-        .execute(pool)
-        .await?;
+    if has_owner_user_id && has_source_type && has_source_fingerprint && !has_week_key {
+        ensure_spending_record_indexes(pool).await?;
+        return Ok(());
+    }
+
+    if table_exists(pool, "spending_records_new").await? {
+        query("DROP TABLE spending_records_new")
+            .execute(pool)
+            .await?;
+    }
     query(
         r#"
         CREATE TABLE spending_records_new (
@@ -261,23 +264,7 @@ async fn migrate_spending_records(pool: &SqlitePool) -> std::result::Result<(), 
     query("ALTER TABLE spending_records_new RENAME TO spending_records")
         .execute(pool)
         .await?;
-    query(
-        r#"
-        CREATE INDEX IF NOT EXISTS idx_spending_records_owner_transacted_at
-        ON spending_records(owner_user_id, transacted_at)
-        "#,
-    )
-    .execute(pool)
-    .await?;
-    query(
-        r#"
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_spending_records_import_fingerprint
-        ON spending_records(owner_user_id, source_type, source_fingerprint)
-        WHERE source_type IS NOT NULL AND source_fingerprint IS NOT NULL
-        "#,
-    )
-    .execute(pool)
-    .await?;
+    ensure_spending_record_indexes(pool).await?;
 
     Ok(())
 }
@@ -300,14 +287,7 @@ async fn create_budget_periods_table(pool: &SqlitePool) -> std::result::Result<(
     .execute(pool)
     .await?;
 
-    query(
-        r#"
-        CREATE INDEX IF NOT EXISTS idx_budget_periods_owner_updated_at
-        ON budget_periods(owner_user_id, updated_at DESC, budget_id DESC)
-        "#,
-    )
-    .execute(pool)
-    .await?;
+    ensure_budget_period_indexes(pool).await?;
 
     Ok(())
 }
@@ -330,6 +310,25 @@ async fn create_spending_records_table(pool: &SqlitePool) -> std::result::Result
     .execute(pool)
     .await?;
 
+    ensure_spending_record_indexes(pool).await?;
+
+    Ok(())
+}
+
+async fn ensure_budget_period_indexes(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_budget_periods_owner_updated_at
+        ON budget_periods(owner_user_id, updated_at DESC, budget_id DESC)
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn ensure_spending_record_indexes(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
     query(
         r#"
         CREATE INDEX IF NOT EXISTS idx_spending_records_owner_transacted_at

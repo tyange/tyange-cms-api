@@ -1076,6 +1076,112 @@ async fn migrates_spending_records_to_add_import_fingerprint_columns() {
 }
 
 #[tokio::test]
+async fn init_db_leaves_stale_spending_temp_table_alone_when_schema_is_current() {
+    let db = SqlitePool::connect("sqlite::memory:")
+        .await
+        .expect("failed to connect sqlite");
+
+    query(
+        r#"
+        CREATE TABLE spending_records (
+            record_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_user_id TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            merchant TEXT,
+            transacted_at DATETIME NOT NULL,
+            source_type TEXT,
+            source_fingerprint TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(&db)
+    .await
+    .expect("failed to create spending_records");
+
+    query(
+        r#"
+        CREATE TABLE spending_records_new (
+            record_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_user_id TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            merchant TEXT,
+            transacted_at DATETIME NOT NULL,
+            source_type TEXT,
+            source_fingerprint TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(&db)
+    .await
+    .expect("failed to create spending_records_new");
+
+    init_db(&db).await.expect("failed to init db");
+
+    let temp_exists: i64 = query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'spending_records_new'",
+    )
+    .fetch_one(&db)
+    .await
+    .expect("failed to inspect spending_records_new");
+    assert_eq!(temp_exists, 1);
+}
+
+#[tokio::test]
+async fn init_db_leaves_stale_budget_temp_table_alone_when_schema_is_current() {
+    let db = SqlitePool::connect("sqlite::memory:")
+        .await
+        .expect("failed to connect sqlite");
+
+    query(
+        r#"
+        CREATE TABLE budget_periods (
+            budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_user_id TEXT NOT NULL,
+            total_budget INTEGER NOT NULL,
+            from_date DATE NOT NULL,
+            to_date DATE NOT NULL,
+            alert_threshold REAL NOT NULL DEFAULT 0.85,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(&db)
+    .await
+    .expect("failed to create budget_periods");
+
+    query(
+        r#"
+        CREATE TABLE budget_periods_new (
+            budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_user_id TEXT NOT NULL,
+            total_budget INTEGER NOT NULL,
+            from_date DATE NOT NULL,
+            to_date DATE NOT NULL,
+            alert_threshold REAL NOT NULL DEFAULT 0.85,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(&db)
+    .await
+    .expect("failed to create budget_periods_new");
+
+    init_db(&db).await.expect("failed to init db");
+
+    let temp_exists: i64 = query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'budget_periods_new'",
+    )
+    .fetch_one(&db)
+    .await
+    .expect("failed to inspect budget_periods_new");
+    assert_eq!(temp_exists, 1);
+}
+
+#[tokio::test]
 async fn spending_import_preview_reports_new_and_out_of_period_rows() {
     let Some(fixture_bytes) = fixture_excel_bytes() else {
         return;
