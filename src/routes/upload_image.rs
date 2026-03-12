@@ -23,17 +23,45 @@ pub async fn upload_image(
     let _user = current_user(req)?;
 
     while let Some(field) = multipart.next_field().await? {
-        let origin_filename = &field.file_name().unwrap_or("unknown").to_owned();
+        let Some(origin_filename) = field.file_name().map(|name| name.to_owned()) else {
+            continue;
+        };
 
-        let extension = std::path::Path::new(origin_filename)
+        let content_type = field
+            .content_type()
+            .map(|mime| mime.to_string())
+            .unwrap_or_default();
+
+        if !content_type.starts_with("image/") {
+            return Err(Error::from_string(
+                format!("이미지 파일만 업로드할 수 있습니다: {}", content_type),
+                StatusCode::BAD_REQUEST,
+            ));
+        }
+
+        let extension = std::path::Path::new(&origin_filename)
             .extension()
             .and_then(|ext| ext.to_str())
-            .unwrap_or("jpg");
+            .filter(|ext| !ext.trim().is_empty())
+            .unwrap_or_else(|| match content_type.as_str() {
+                "image/png" => "png",
+                "image/gif" => "gif",
+                "image/webp" => "webp",
+                "image/svg+xml" => "svg",
+                _ => "jpg",
+            });
 
         let file_bytes = field
             .bytes()
             .await
             .map_err(|e| Error::from_string(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR))?;
+
+        if file_bytes.is_empty() {
+            return Err(Error::from_string(
+                "비어 있는 파일은 업로드할 수 없습니다.",
+                StatusCode::BAD_REQUEST,
+            ));
+        }
 
         let upload_base_path =
             env::var("UPLOAD_PATH").unwrap_or_else(|_| ".uploads/images".to_string());
@@ -75,7 +103,7 @@ pub async fn upload_image(
         .bind(&file_name)
         .bind(&origin_filename)
         .bind(file_path.to_str())
-        .bind(&extension)
+        .bind(&content_type)
         .bind(&image_type)
         .execute(&data.db)
         .await;
@@ -102,7 +130,7 @@ pub async fn upload_image(
     }
 
     Err(Error::from_string(
-        "업로드할 파일이 없습니다.",
+        "업로드할 이미지 파일이 없습니다.",
         StatusCode::BAD_REQUEST,
     ))
 }

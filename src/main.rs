@@ -111,6 +111,7 @@ async fn main() -> Result<(), std::io::Error> {
                 put(update_portfolio).with(AdminOnly).with(Auth),
             )
             .at("/upload-image", post(upload_image).with(Auth))
+            .at("/images/upload", post(upload_image).with(Auth))
             .at("/login", post(login))
             .at("/signup", post(signup))
             .at("/me", get(me).with(Auth))

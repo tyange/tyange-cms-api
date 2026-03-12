@@ -40,3 +40,5 @@ mod budget_spending_scope_test;
 mod post_authorization_test;
 #[cfg(test)]
 mod signup_test;
+#[cfg(test)]
+mod upload_image_test;
