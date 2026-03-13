@@ -31,6 +31,7 @@ Rust + Poem + SQLite로 만든 개인용 CMS API 서버입니다.
 # 상대 경로 예시
 DATABASE_PATH=./data/database.db
 UPLOAD_PATH=.uploads/images
+UPLOAD_MAX_BYTES=20971520
 
 # JWT
 JWT_ACCESS_SECRET=replace-with-access-secret
@@ -52,6 +53,7 @@ VAPID_SUBJECT=mailto:you@example.com
 # 절대 경로 예시
 DATABASE_PATH=/Users/yourname/data/tyange/database.db
 UPLOAD_PATH=/Users/yourname/data/tyange/uploads/images
+UPLOAD_MAX_BYTES=20971520
 ```
 
 ### Web Push 환경변수

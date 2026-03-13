@@ -49,8 +49,13 @@ use crate::routes::upsert_push_subscription::upsert_push_subscription;
 use crate::{models::AppState, routes::add_user::add_user};
 use db::init_db;
 use poem::{
-    delete, endpoint::StaticFilesEndpoint, get, handler, http::StatusCode, listener::TcpListener,
-    middleware::Cors, options, post, put, EndpointExt, Response, Route, Server,
+    delete,
+    endpoint::StaticFilesEndpoint,
+    get, handler,
+    http::StatusCode,
+    listener::TcpListener,
+    middleware::{Cors, SizeLimit},
+    options, post, put, EndpointExt, Response, Route, Server,
 };
 use routes::{
     get_post::get_post, get_posts::get_posts, login::login, login_google::login_google,
@@ -67,6 +72,16 @@ fn return_str() -> &'static str {
 #[handler]
 async fn options_handler() -> Response {
     Response::builder().status(StatusCode::OK).finish()
+}
+
+const DEFAULT_UPLOAD_MAX_BYTES: usize = 20 * 1024 * 1024;
+
+fn upload_size_limit() -> usize {
+    env::var("UPLOAD_MAX_BYTES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_UPLOAD_MAX_BYTES)
 }
 
 #[tokio::main]
@@ -96,6 +111,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     fn configure_routes() -> Route {
         let upload_base_path = env::var("UPLOAD_PATH").unwrap_or(String::from(".uploads/images"));
+        let upload_max_bytes = upload_size_limit();
 
         Route::new()
             .at("/health", get(return_str))
@@ -113,8 +129,18 @@ async fn main() -> Result<(), std::io::Error> {
                 "/portfolio/update",
                 put(update_portfolio).with(AdminOnly).with(Auth),
             )
-            .at("/upload-image", post(upload_image).with(Auth))
-            .at("/images/upload", post(upload_image).with(Auth))
+            .at(
+                "/upload-image",
+                post(upload_image)
+                    .with(SizeLimit::new(upload_max_bytes))
+                    .with(Auth),
+            )
+            .at(
+                "/images/upload",
+                post(upload_image)
+                    .with(SizeLimit::new(upload_max_bytes))
+                    .with(Auth),
+            )
             .at("/login", post(login))
             .at("/login/google", post(login_google))
             .at("/signup", post(signup))
@@ -158,11 +184,15 @@ async fn main() -> Result<(), std::io::Error> {
             )
             .at(
                 "/budget/spending/import-preview",
-                post(preview_spending_import).with(Auth),
+                post(preview_spending_import)
+                    .with(SizeLimit::new(upload_max_bytes))
+                    .with(Auth),
             )
             .at(
                 "/budget/spending/import-commit",
-                post(commit_spending_import).with(Auth),
+                post(commit_spending_import)
+                    .with(SizeLimit::new(upload_max_bytes))
+                    .with(Auth),
             )
             .at(
                 "/budget/spending/:record_id",
