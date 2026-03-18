@@ -15,6 +15,7 @@ pub mod get_all_posts;
 pub mod get_api_keys;
 pub mod get_budget;
 pub mod get_count_with_tags;
+pub mod get_feed_items;
 pub mod get_my_match;
 pub mod get_portfolio;
 pub mod get_post;
@@ -42,6 +43,8 @@ pub mod upsert_push_subscription;
 
 #[cfg(test)]
 mod budget_spending_scope_test;
+#[cfg(test)]
+mod feed_items_test;
 #[cfg(test)]
 mod match_flow_test;
 #[cfg(test)]

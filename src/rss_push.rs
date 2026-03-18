@@ -22,7 +22,10 @@ use web_push::{
     WebPushMessageBuilder,
 };
 
-use crate::models::{CreateRssSourceResponse, RssSourceResponse, WebPushSubscriptionResponse};
+use crate::models::{
+    CreateRssSourceResponse, FeedItemResponse, FeedItemsQuery, FeedItemsResponse,
+    FeedSummaryResponse, RssSourceResponse, WebPushSubscriptionResponse,
+};
 
 const MAX_FEED_BYTES: usize = 1_000_000;
 const POLLING_INTERVAL_SECONDS: u64 = 300;
@@ -93,6 +96,17 @@ struct InsertedFeedItem {
     item_id: i64,
     title: String,
     link: Option<String>,
+}
+
+#[derive(Debug, FromRow)]
+struct FeedListRow {
+    item_id: i64,
+    source_id: String,
+    source_title: Option<String>,
+    title: String,
+    item_url: Option<String>,
+    published_at: Option<String>,
+    detected_at: String,
 }
 
 #[derive(Debug)]
@@ -470,6 +484,87 @@ pub async fn list_push_subscriptions(
             },
         )
         .collect())
+}
+
+pub async fn list_user_feed_items(
+    db: &SqlitePool,
+    user_id: &str,
+    params: FeedItemsQuery,
+) -> Result<FeedItemsResponse, AppError> {
+    let limit = params.limit.unwrap_or(50).clamp(1, 100) as i64;
+    let source_id = params.source_id.map(|value| value.trim().to_string());
+    let _unread_only = params.unread_only.unwrap_or(false);
+
+    let total_count = query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*)
+        FROM user_rss_subscriptions u
+        INNER JOIN rss_feed_items i ON i.source_id = u.source_id
+        WHERE u.user_id = ?
+          AND (? IS NULL OR u.source_id = ?)
+        "#,
+    )
+    .bind(user_id)
+    .bind(source_id.as_deref())
+    .bind(source_id.as_deref())
+    .fetch_one(db)
+    .await
+    .map_err(|err| AppError::internal(format!("Feed 요약 조회 실패: {}", err)))?;
+
+    let unread_count = total_count;
+
+    let rows = query_as::<_, FeedListRow>(
+        r#"
+        SELECT
+            i.item_id,
+            i.source_id,
+            COALESCE(NULLIF(s.title, ''), NULLIF(s.site_url, ''), s.normalized_feed_url) AS source_title,
+            i.title,
+            i.link AS item_url,
+            i.published_at,
+            i.detected_at
+        FROM user_rss_subscriptions u
+        INNER JOIN rss_sources s ON s.source_id = u.source_id
+        INNER JOIN rss_feed_items i ON i.source_id = u.source_id
+        WHERE u.user_id = ?
+          AND (? IS NULL OR u.source_id = ?)
+        ORDER BY
+            COALESCE(i.published_at, i.detected_at) DESC,
+            i.item_id DESC
+        LIMIT ?
+        "#,
+    )
+    .bind(user_id)
+    .bind(source_id.as_deref())
+    .bind(source_id.as_deref())
+    .bind(limit)
+    .fetch_all(db)
+    .await
+    .map_err(|err| AppError::internal(format!("Feed 목록 조회 실패: {}", err)))?;
+
+    let items = rows
+        .into_iter()
+        .map(|row| FeedItemResponse {
+            item_id: row.item_id.to_string(),
+            source_id: row.source_id,
+            source_title: row
+                .source_title
+                .unwrap_or_else(|| "unknown-source".to_string()),
+            title: row.title,
+            published_at: row.published_at.unwrap_or(row.detected_at),
+            item_url: row.item_url,
+            read: false,
+            saved: false,
+        })
+        .collect();
+
+    Ok(FeedItemsResponse {
+        items,
+        summary: FeedSummaryResponse {
+            total_count,
+            unread_count,
+        },
+    })
 }
 
 pub async fn upsert_push_subscription(

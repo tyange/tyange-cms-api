@@ -462,6 +462,37 @@ pub struct PublicPushKeyResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct FeedItemsQuery {
+    pub limit: Option<u32>,
+    pub unread_only: Option<bool>,
+    pub source_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FeedItemResponse {
+    pub item_id: String,
+    pub source_id: String,
+    pub source_title: String,
+    pub title: String,
+    pub published_at: String,
+    pub item_url: Option<String>,
+    pub read: bool,
+    pub saved: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FeedSummaryResponse {
+    pub total_count: i64,
+    pub unread_count: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FeedItemsResponse {
+    pub items: Vec<FeedItemResponse>,
+    pub summary: FeedSummaryResponse,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct CreateMatchRequest {
     pub target_user_id: String,
 }

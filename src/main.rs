@@ -32,6 +32,7 @@ use crate::routes::get_all_posts::get_all_posts;
 use crate::routes::get_api_keys::get_api_keys;
 use crate::routes::get_budget::get_budget;
 use crate::routes::get_count_with_tags::get_count_with_tags;
+use crate::routes::get_feed_items::get_feed_items;
 use crate::routes::get_my_match::get_my_match;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
@@ -159,6 +160,7 @@ async fn main() -> Result<(), std::io::Error> {
                 "/rss-sources",
                 get(get_rss_sources).post(create_rss_source).with(Auth),
             )
+            .at("/feed/items", get(get_feed_items).with(Auth))
             .at(
                 "/rss-sources/:source_id/subscription",
                 delete(delete_rss_subscription).with(Auth),
