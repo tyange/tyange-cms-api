@@ -92,6 +92,9 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
         .await
         .map_err(InternalServerError)?;
     migrate_users(pool).await.map_err(InternalServerError)?;
+    migrate_user_matches(pool)
+        .await
+        .map_err(InternalServerError)?;
     migrate_api_keys(pool).await.map_err(InternalServerError)?;
     migrate_rss_push(pool).await.map_err(InternalServerError)?;
 
@@ -428,6 +431,44 @@ async fn ensure_user_indexes(pool: &SqlitePool) -> std::result::Result<(), sqlx:
         CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub
         ON users(google_sub)
         WHERE google_sub IS NOT NULL
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn migrate_user_matches(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    query(
+        r#"
+        CREATE TABLE IF NOT EXISTS user_matches (
+            match_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            requester_user_id TEXT NOT NULL,
+            target_user_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            responded_at DATETIME,
+            closed_at DATETIME
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_user_matches_requester_status
+        ON user_matches(requester_user_id, status, created_at DESC, match_id DESC)
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_user_matches_target_status
+        ON user_matches(target_user_id, status, created_at DESC, match_id DESC)
         "#,
     )
     .execute(pool)
