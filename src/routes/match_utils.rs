@@ -2,7 +2,7 @@ use poem::http::StatusCode;
 use poem::Error;
 use sqlx::{query, query_as, query_scalar, SqlitePool};
 
-use crate::models::MatchSummaryResponse;
+use crate::models::{MatchMessageResponse, MatchSummaryResponse};
 
 const ACTIVE_MATCH_STATUSES: [&str; 2] = ["pending", "matched"];
 
@@ -110,6 +110,38 @@ pub async fn find_pending_match_by_id(
     })
 }
 
+pub async fn find_confirmed_match_for_user(
+    db: &SqlitePool,
+    user_id: &str,
+) -> Result<Option<MatchRow>, Error> {
+    query_as::<_, MatchRow>(
+        r#"
+        SELECT
+            match_id,
+            requester_user_id,
+            target_user_id,
+            status,
+            created_at,
+            responded_at
+        FROM user_matches
+        WHERE (requester_user_id = ? OR target_user_id = ?)
+          AND status = 'matched'
+        ORDER BY responded_at DESC, created_at DESC, match_id DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .bind(user_id)
+    .fetch_optional(db)
+    .await
+    .map_err(|err| {
+        Error::from_string(
+            format!("매칭 조회 실패: {}", err),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })
+}
+
 pub fn to_match_summary(row: MatchRow, current_user_id: &str) -> MatchSummaryResponse {
     let counterpart_user_id = if row.requester_user_id == current_user_id {
         row.target_user_id.clone()
@@ -165,4 +197,17 @@ pub async fn close_active_match(
         },
         user_id,
     )))
+}
+
+pub fn to_match_message_response(
+    row: (i64, i64, String, String, String, String),
+) -> MatchMessageResponse {
+    MatchMessageResponse {
+        message_id: row.0,
+        match_id: row.1,
+        sender_user_id: row.2,
+        receiver_user_id: row.3,
+        content: row.4,
+        created_at: row.5,
+    }
 }

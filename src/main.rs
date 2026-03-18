@@ -19,6 +19,7 @@ use std::{env, fs, sync::Arc};
 use crate::routes::create_api_key::create_api_key_handler;
 use crate::routes::create_budget_plan::create_budget_plan;
 use crate::routes::create_match::create_match;
+use crate::routes::create_match_message::create_match_message;
 use crate::routes::create_rss_source::create_rss_source;
 use crate::routes::create_spending::create_spending;
 use crate::routes::delete_all_spending::delete_all_spending;
@@ -33,6 +34,7 @@ use crate::routes::get_api_keys::get_api_keys;
 use crate::routes::get_budget::get_budget;
 use crate::routes::get_count_with_tags::get_count_with_tags;
 use crate::routes::get_feed_items::get_feed_items;
+use crate::routes::get_match_messages::get_match_messages;
 use crate::routes::get_my_match::get_my_match;
 use crate::routes::get_portfolio::get_portfolio;
 use crate::routes::get_posts_with_tags::get_posts_with_tags;
@@ -154,6 +156,12 @@ async fn main() -> Result<(), std::io::Error> {
             .at(
                 "/match/me",
                 get(get_my_match).delete(delete_my_match).with(Auth),
+            )
+            .at(
+                "/match/messages",
+                get(get_match_messages)
+                    .post(create_match_message)
+                    .with(Auth),
             )
             .at("/match/:match_id/respond", post(respond_match).with(Auth))
             .at(

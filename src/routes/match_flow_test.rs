@@ -9,8 +9,10 @@ use crate::{
     middlewares::auth_middleware::Auth,
     models::AppState,
     routes::{
-        add_user::create_user, create_match::create_match, delete_my_match::delete_my_match,
-        get_my_match::get_my_match, respond_match::respond_match,
+        add_user::create_user, create_match::create_match,
+        create_match_message::create_match_message, delete_my_match::delete_my_match,
+        get_match_messages::get_match_messages, get_my_match::get_my_match,
+        respond_match::respond_match,
     },
 };
 use tyange_cms_api::auth::jwt::Claims;
@@ -29,6 +31,12 @@ fn create_match_app(state: Arc<AppState>) -> impl Endpoint {
         .at(
             "/match/me",
             poem::get(get_my_match).delete(delete_my_match).with(Auth),
+        )
+        .at(
+            "/match/messages",
+            poem::get(get_match_messages)
+                .post(create_match_message)
+                .with(Auth),
         )
         .at("/match/:match_id/respond", post(respond_match).with(Auth))
         .data(state)
@@ -390,4 +398,134 @@ async fn protected_match_routes_require_authentication() {
         .send()
         .await
         .assert_status(StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn matched_user_can_create_and_list_messages() {
+    let state = create_test_state().await;
+    seed_user(&state, "alice@example.com").await;
+    seed_user(&state, "bob@example.com").await;
+    let cli = TestClient::new(create_match_app(state.clone()));
+
+    query(
+        "INSERT INTO user_matches (requester_user_id, target_user_id, status, responded_at) VALUES (?, ?, 'matched', ?)",
+    )
+    .bind("alice@example.com")
+    .bind("bob@example.com")
+    .bind("2026-03-19 10:00:00")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed matched row");
+
+    let create_response = cli
+        .post("/match/messages")
+        .header(
+            "Authorization",
+            issue_access_token("alice@example.com", "user"),
+        )
+        .body_json(&json!({
+            "content": "hello bob"
+        }))
+        .send()
+        .await;
+    create_response.assert_status(StatusCode::CREATED);
+
+    let stored: (String, String) = sqlx::query_as(
+        "SELECT sender_user_id, receiver_user_id FROM match_messages WHERE match_id = 1 LIMIT 1",
+    )
+    .fetch_one(&state.db)
+    .await
+    .expect("failed to fetch stored message");
+    assert_eq!(stored.0, "alice@example.com");
+    assert_eq!(stored.1, "bob@example.com");
+
+    let list_response = cli
+        .get("/match/messages")
+        .header(
+            "Authorization",
+            issue_access_token("bob@example.com", "user"),
+        )
+        .send()
+        .await;
+    list_response.assert_status_is_ok();
+
+    let list_json = list_response.json().await;
+    let data = list_json.value().object().get("data").object();
+    data.get("match_id").assert_i64(1);
+    data.get("counterpart_user_id")
+        .assert_string("alice@example.com");
+    data.get("messages").array().assert_contains(|value| {
+        let object = value.object();
+        object.get("sender_user_id").string() == "alice@example.com"
+            && object.get("receiver_user_id").string() == "bob@example.com"
+            && object.get("content").string() == "hello bob"
+    });
+}
+
+#[tokio::test]
+async fn users_without_confirmed_match_cannot_create_or_view_messages() {
+    let state = create_test_state().await;
+    seed_user(&state, "alice@example.com").await;
+    seed_user(&state, "bob@example.com").await;
+    let cli = TestClient::new(create_match_app(state.clone()));
+
+    query(
+        "INSERT INTO user_matches (requester_user_id, target_user_id, status) VALUES (?, ?, 'pending')",
+    )
+    .bind("alice@example.com")
+    .bind("bob@example.com")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed pending row");
+
+    cli.post("/match/messages")
+        .header(
+            "Authorization",
+            issue_access_token("alice@example.com", "user"),
+        )
+        .body_json(&json!({
+            "content": "not allowed yet"
+        }))
+        .send()
+        .await
+        .assert_status(StatusCode::FORBIDDEN);
+
+    cli.get("/match/messages")
+        .header(
+            "Authorization",
+            issue_access_token("bob@example.com", "user"),
+        )
+        .send()
+        .await
+        .assert_status(StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn empty_message_content_is_rejected() {
+    let state = create_test_state().await;
+    seed_user(&state, "alice@example.com").await;
+    seed_user(&state, "bob@example.com").await;
+    let cli = TestClient::new(create_match_app(state.clone()));
+
+    query(
+        "INSERT INTO user_matches (requester_user_id, target_user_id, status, responded_at) VALUES (?, ?, 'matched', ?)",
+    )
+    .bind("alice@example.com")
+    .bind("bob@example.com")
+    .bind("2026-03-19 10:00:00")
+    .execute(&state.db)
+    .await
+    .expect("failed to seed matched row");
+
+    cli.post("/match/messages")
+        .header(
+            "Authorization",
+            issue_access_token("alice@example.com", "user"),
+        )
+        .body_json(&json!({
+            "content": "   "
+        }))
+        .send()
+        .await
+        .assert_status(StatusCode::BAD_REQUEST);
 }

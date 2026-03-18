@@ -512,3 +512,25 @@ pub struct MatchSummaryResponse {
     pub created_at: String,
     pub responded_at: Option<String>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct CreateMatchMessageRequest {
+    pub content: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MatchMessageResponse {
+    pub message_id: i64,
+    pub match_id: i64,
+    pub sender_user_id: String,
+    pub receiver_user_id: String,
+    pub content: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MatchMessagesResponse {
+    pub match_id: i64,
+    pub counterpart_user_id: String,
+    pub messages: Vec<MatchMessageResponse>,
+}
