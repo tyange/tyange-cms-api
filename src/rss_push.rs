@@ -492,6 +492,7 @@ pub async fn list_user_feed_items(
     params: FeedItemsQuery,
 ) -> Result<FeedItemsResponse, AppError> {
     let limit = params.limit.unwrap_or(50).clamp(1, 100) as i64;
+    let offset = params.offset.unwrap_or(0) as i64;
     let source_id = params.source_id.map(|value| value.trim().to_string());
     let _unread_only = params.unread_only.unwrap_or(false);
 
@@ -532,12 +533,14 @@ pub async fn list_user_feed_items(
             COALESCE(i.published_at, i.detected_at) DESC,
             i.item_id DESC
         LIMIT ?
+        OFFSET ?
         "#,
     )
     .bind(user_id)
     .bind(source_id.as_deref())
     .bind(source_id.as_deref())
     .bind(limit)
+    .bind(offset)
     .fetch_all(db)
     .await
     .map_err(|err| AppError::internal(format!("Feed 목록 조회 실패: {}", err)))?;

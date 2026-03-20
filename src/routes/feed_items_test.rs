@@ -320,3 +320,54 @@ async fn feed_items_can_filter_by_source_id() {
         .get("total_count")
         .assert_i64(1);
 }
+
+#[tokio::test]
+async fn feed_items_can_paginate_with_offset() {
+    let state = create_test_state().await;
+    insert_source(&state, "source-page", "Source Page").await;
+    subscribe_user(&state, "reader-4", "source-page").await;
+
+    insert_feed_item(
+        &state,
+        "source-page",
+        "hash-1",
+        "Item 1",
+        "https://example.com/1",
+        "2026-03-19T12:00:00+00:00",
+    )
+    .await;
+    insert_feed_item(
+        &state,
+        "source-page",
+        "hash-2",
+        "Item 2",
+        "https://example.com/2",
+        "2026-03-19T11:00:00+00:00",
+    )
+    .await;
+    insert_feed_item(
+        &state,
+        "source-page",
+        "hash-3",
+        "Item 3",
+        "https://example.com/3",
+        "2026-03-19T10:00:00+00:00",
+    )
+    .await;
+
+    let cli = TestClient::new(create_feed_app(state));
+    let response = cli
+        .get("/feed/items?limit=2&offset=1")
+        .header("Authorization", issue_access_token("reader-4", "user"))
+        .send()
+        .await;
+
+    response.assert_status_is_ok();
+    let json = response.json().await;
+    let data = json.value().object().get("data").object();
+    let items = data.get("items").array();
+    items.assert_len(2);
+    items.get(0).object().get("title").assert_string("Item 2");
+    items.get(1).object().get("title").assert_string("Item 3");
+    data.get("summary").object().get("total_count").assert_i64(3);
+}

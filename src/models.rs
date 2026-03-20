@@ -464,6 +464,7 @@ pub struct PublicPushKeyResponse {
 #[derive(Debug, Deserialize)]
 pub struct FeedItemsQuery {
     pub limit: Option<u32>,
+    pub offset: Option<u32>,
     pub unread_only: Option<bool>,
     pub source_id: Option<String>,
 }
