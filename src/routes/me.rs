@@ -15,7 +15,9 @@ use crate::models::{AppState, MeResponse};
 pub async fn me(req: &Request, data: Data<&Arc<AppState>>) -> Result<Json<MeResponse>, Error> {
     let user = current_user(req)?;
 
-    let me = query_as::<_, MeResponse>("SELECT user_id, user_role FROM users WHERE user_id = ?")
+    let me = query_as::<_, MeResponse>(
+        "SELECT user_id, user_role, display_name, avatar_url, bio FROM users WHERE user_id = ?",
+    )
         .bind(&user.user_id)
         .fetch_optional(&data.db)
         .await

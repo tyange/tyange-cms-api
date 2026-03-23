@@ -56,7 +56,7 @@ pub async fn login_google(
 
     let existing_user = query(
         r#"
-        SELECT user_id, user_role, auth_provider, google_sub
+        SELECT user_id, user_role, auth_provider, google_sub, display_name, avatar_url
         FROM users
         WHERE lower(user_id) = lower(?)
         "#,
@@ -76,6 +76,8 @@ pub async fn login_google(
                 .try_get("user_role")
                 .unwrap_or_else(|_| "user".to_string());
             let linked_google_sub: Option<String> = row.try_get("google_sub").unwrap_or(None);
+            let current_display_name: Option<String> = row.try_get("display_name").unwrap_or(None);
+            let current_avatar_url: Option<String> = row.try_get("avatar_url").unwrap_or(None);
 
             if let Some(linked_google_sub) = linked_google_sub.as_deref() {
                 if linked_google_sub != verified_user.google_sub {
@@ -102,17 +104,50 @@ pub async fn login_google(
                 })?;
             }
 
+            if current_display_name.as_deref().unwrap_or("").trim().is_empty()
+                || current_avatar_url.as_deref().unwrap_or("").trim().is_empty()
+            {
+                query(
+                    r#"
+                    UPDATE users
+                    SET display_name = COALESCE(NULLIF(TRIM(display_name), ''), ?),
+                        avatar_url = COALESCE(NULLIF(TRIM(avatar_url), ''), ?)
+                    WHERE user_id = ?
+                    "#,
+                )
+                .bind(&verified_user.display_name)
+                .bind(&verified_user.avatar_url)
+                .bind(&user_id)
+                .execute(&data.db)
+                .await
+                .map_err(|e| {
+                    eprintln!("Database error: {:?}", e);
+                    Error::from_string("Database error", StatusCode::INTERNAL_SERVER_ERROR)
+                })?;
+            }
+
             (user_id, user_role)
         }
         None => {
             query(
                 r#"
-                INSERT INTO users (user_id, password, user_role, auth_provider, google_sub)
-                VALUES (?, NULL, 'user', 'google', ?)
+                INSERT INTO users (
+                    user_id,
+                    password,
+                    user_role,
+                    auth_provider,
+                    google_sub,
+                    display_name,
+                    avatar_url,
+                    bio
+                )
+                VALUES (?, NULL, 'user', 'google', ?, ?, ?, NULL)
                 "#,
             )
             .bind(&verified_user.email)
             .bind(&verified_user.google_sub)
+            .bind(&verified_user.display_name)
+            .bind(&verified_user.avatar_url)
             .execute(&data.db)
             .await
             .map_err(|e| {

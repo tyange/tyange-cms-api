@@ -36,6 +36,7 @@ pub mod me;
 pub mod respond_match;
 pub mod signup;
 pub mod update_active_budget;
+pub mod update_my_profile;
 pub mod update_portfolio;
 pub mod update_post;
 pub mod update_spending;

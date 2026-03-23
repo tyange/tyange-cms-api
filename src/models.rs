@@ -95,6 +95,16 @@ pub struct LoginResponse {
 pub struct MeResponse {
     pub user_id: String,
     pub user_role: String,
+    pub display_name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub bio: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateMyProfileRequest {
+    pub display_name: String,
+    pub avatar_url: String,
+    pub bio: String,
 }
 
 #[derive(Debug, FromRow)]

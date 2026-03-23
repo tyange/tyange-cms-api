@@ -367,8 +367,26 @@ async fn migrate_users(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error
 
     let has_auth_provider = column_exists(pool, "users", "auth_provider").await?;
     let has_google_sub = column_exists(pool, "users", "google_sub").await?;
+    let has_display_name = column_exists(pool, "users", "display_name").await?;
+    let has_avatar_url = column_exists(pool, "users", "avatar_url").await?;
+    let has_bio = column_exists(pool, "users", "bio").await?;
 
     if has_auth_provider && has_google_sub {
+        if !has_display_name {
+            query("ALTER TABLE users ADD COLUMN display_name TEXT")
+                .execute(pool)
+                .await?;
+        }
+        if !has_avatar_url {
+            query("ALTER TABLE users ADD COLUMN avatar_url TEXT")
+                .execute(pool)
+                .await?;
+        }
+        if !has_bio {
+            query("ALTER TABLE users ADD COLUMN bio TEXT")
+                .execute(pool)
+                .await?;
+        }
         ensure_user_indexes(pool).await?;
         return Ok(());
     }
@@ -383,7 +401,10 @@ async fn migrate_users(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error
             password TEXT,
             user_role TEXT NOT NULL,
             auth_provider TEXT NOT NULL DEFAULT 'local',
-            google_sub TEXT
+            google_sub TEXT,
+            display_name TEXT,
+            avatar_url TEXT,
+            bio TEXT
         )
         "#,
     )
@@ -392,8 +413,8 @@ async fn migrate_users(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error
 
     query(
         r#"
-        INSERT INTO users_new (user_id, password, user_role, auth_provider, google_sub)
-        SELECT user_id, password, user_role, 'local', NULL
+        INSERT INTO users_new (user_id, password, user_role, auth_provider, google_sub, display_name, avatar_url, bio)
+        SELECT user_id, password, user_role, 'local', NULL, NULL, NULL, NULL
         FROM users
         "#,
     )
@@ -417,7 +438,10 @@ async fn create_users_table(pool: &SqlitePool) -> std::result::Result<(), sqlx::
             password TEXT,
             user_role TEXT NOT NULL,
             auth_provider TEXT NOT NULL DEFAULT 'local',
-            google_sub TEXT
+            google_sub TEXT,
+            display_name TEXT,
+            avatar_url TEXT,
+            bio TEXT
         )
         "#,
     )

@@ -48,6 +48,7 @@ use crate::routes::me::me;
 use crate::routes::respond_match::respond_match;
 use crate::routes::signup::signup;
 use crate::routes::update_active_budget::update_active_budget;
+use crate::routes::update_my_profile::update_my_profile;
 use crate::routes::update_portfolio::update_portfolio;
 use crate::routes::update_post::update_post;
 use crate::routes::update_spending::update_spending;
@@ -152,6 +153,7 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/login/google", post(login_google))
             .at("/signup", post(signup))
             .at("/me", get(me).with(Auth))
+            .at("/me/profile", put(update_my_profile).with(Auth))
             .at("/match/request", post(create_match).with(Auth))
             .at(
                 "/match/me",

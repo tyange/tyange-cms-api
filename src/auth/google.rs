@@ -15,6 +15,8 @@ pub struct GoogleTokenVerifier {
 pub struct VerifiedGoogleUser {
     pub email: String,
     pub google_sub: String,
+    pub display_name: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -23,6 +25,8 @@ struct GoogleTokenInfoResponse {
     iss: Option<String>,
     sub: Option<String>,
     email: Option<String>,
+    name: Option<String>,
+    picture: Option<String>,
     #[serde(default, deserialize_with = "deserialize_google_bool")]
     email_verified: bool,
     exp: Option<String>,
@@ -156,6 +160,18 @@ fn validate_google_token_info(
     Ok(VerifiedGoogleUser {
         email: email.to_ascii_lowercase(),
         google_sub: google_sub.to_string(),
+        display_name: token_info
+            .name
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
+        avatar_url: token_info
+            .picture
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
     })
 }
 
