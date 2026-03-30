@@ -133,11 +133,11 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/post/delete/:post_id", delete(delete_post).with(Auth))
             .at("/tags", get(get_count_with_tags))
             .at("/tags-with-category", get(get_tags_with_category))
-            .at("/portfolio", get(get_portfolio))
-            .at("/portfolio", put(update_portfolio).with(AdminOnly).with(Auth))
             .at(
                 "/portfolio",
-                delete(delete_portfolio).with(AdminOnly).with(Auth),
+                get(get_portfolio)
+                    .put(update_portfolio.with(AdminOnly).with(Auth))
+                    .delete(delete_portfolio.with(AdminOnly).with(Auth)),
             )
             .at(
                 "/portfolio/update",
