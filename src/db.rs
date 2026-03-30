@@ -1,6 +1,11 @@
 use poem::{error::InternalServerError, Result};
 use sqlx::{query, query_scalar, Row, SqlitePool};
 
+use crate::models::{
+    PortfolioAbout, PortfolioDocument, PortfolioHero, PortfolioHighlightCard, PortfolioIdentity,
+    PortfolioLink, PortfolioProject, PortfolioWritingSection,
+};
+
 pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -85,6 +90,39 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     .await
     .map_err(InternalServerError)?;
 
+    if !column_exists(pool, "portfolio", "slug").await.map_err(InternalServerError)? {
+        query("ALTER TABLE portfolio ADD COLUMN slug TEXT NOT NULL DEFAULT 'dev'")
+            .execute(pool)
+            .await
+            .map_err(InternalServerError)?;
+    }
+
+    if !column_exists(pool, "portfolio", "created_at")
+        .await
+        .map_err(InternalServerError)?
+    {
+        query("ALTER TABLE portfolio ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+            .execute(pool)
+            .await
+            .map_err(InternalServerError)?;
+    }
+
+    query("UPDATE portfolio SET slug = 'dev' WHERE slug IS NULL OR TRIM(slug) = ''")
+        .execute(pool)
+        .await
+        .map_err(InternalServerError)?;
+
+    query(
+        "UPDATE portfolio SET created_at = updated_at WHERE created_at IS NULL OR TRIM(created_at) = ''",
+    )
+    .execute(pool)
+    .await
+    .map_err(InternalServerError)?;
+
+    ensure_default_portfolio(pool)
+        .await
+        .map_err(InternalServerError)?;
+
     migrate_budget_periods(pool)
         .await
         .map_err(InternalServerError)?;
@@ -102,6 +140,204 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     migrate_rss_push(pool).await.map_err(InternalServerError)?;
 
     Ok(())
+}
+
+async fn ensure_default_portfolio(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
+    let existing: Option<i64> =
+        query_scalar("SELECT portfolio_id FROM portfolio WHERE slug = ? LIMIT 1")
+            .bind("dev")
+            .fetch_optional(pool)
+            .await?;
+
+    if existing.is_some() {
+        return Ok(());
+    }
+
+    query(
+        r#"
+        INSERT INTO portfolio (slug, content, created_at, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        "#,
+    )
+    .bind("dev")
+    .bind(serde_json::to_string(&default_portfolio_document()).unwrap_or_default())
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+fn default_portfolio_document() -> PortfolioDocument {
+    PortfolioDocument {
+        slug: String::from("dev"),
+        version: 1,
+        identity: PortfolioIdentity {
+            name: String::from("TYANGE"),
+            role: String::from("프론트엔드 개발자"),
+            location: String::from("서울, 대한민국"),
+            availability: String::from("브랜딩과 제품 완성도가 중요한 작업을 선별해 진행합니다"),
+            email: String::from("usun16@gmail.com"),
+            github_url: String::from("https://github.com/tyange"),
+            blog_url: String::from("https://blog.tyange.com"),
+            velog_url: Some(String::from("https://velog.io/@tyange")),
+        },
+        hero: PortfolioHero {
+            eyebrow: String::from("프론트엔드 개발자 / CMS 중심 사이드 프로젝트 / 서울"),
+            headline: String::from("차분한 화면 뒤에 단단한 구조를 설계합니다."),
+            summary: String::from(
+                "겉으로는 조용하고 매끈하지만, 안쪽에는 분명한 구조와 운영 흐름이 살아 있는 화면을 만드는 일을 좋아합니다. 최근에는 Nuxt 블로그, Rust 기반 CMS API, 내부 CMS, Solid 대시보드를 하나의 퍼블리싱 흐름으로 연결하는 작업을 이어가고 있습니다.",
+            ),
+            primary_cta: PortfolioLink {
+                label: String::from("GitHub 보기"),
+                url: String::from("https://github.com/tyange"),
+            },
+            secondary_cta: PortfolioLink {
+                label: String::from("블로그 보기"),
+                url: String::from("https://blog.tyange.com"),
+            },
+        },
+        highlight_cards: vec![
+            PortfolioHighlightCard {
+                label: String::from("집중 영역"),
+                title: String::from("콘텐츠 구조와 운영 흐름까지 포함한 프론트엔드 시스템 설계"),
+            },
+            PortfolioHighlightCard {
+                label: String::from("기술 스택"),
+                title: String::from("Next.js, Nuxt, Solid, Rust, Poem, Tailwind CSS, SQLite"),
+            },
+        ],
+        guiding_principle: String::from(
+            "미니멀은 비워 두는 일이 아니라, 느슨한 부분을 끝까지 다듬고 난 뒤에 남는 결과라고 생각합니다.",
+        ),
+        featured_projects: vec![
+            PortfolioProject {
+                slug: String::from("tyange-blog"),
+                title: String::from("tyange-blog"),
+                period: String::from("Nuxt 4 / 콘텐츠 플랫폼"),
+                summary: String::from(
+                    "마크다운 작성 경험, RSS 생성, 태그 필터링, CMS API 기반 재배포 흐름까지 연결한 개인 블로그입니다. 글을 쓰는 경험과 읽는 경험이 모두 가볍고 자연스럽게 이어지도록 다듬었습니다.",
+                ),
+                stack: vec![
+                    String::from("Nuxt 4"),
+                    String::from("TypeScript"),
+                    String::from("Tailwind CSS 4"),
+                    String::from("Nuxt MDC"),
+                    String::from("Pinia"),
+                ],
+                highlights: vec![
+                    String::from("GitHub Actions를 통해 Lightsail에 배포되고, CMS에서 콘텐츠가 바뀌면 RSS와 정적 결과물이 함께 다시 생성됩니다."),
+                    String::from("마크다운 본문, 코드 블록, 포스트 메타데이터가 읽는 흐름을 방해하지 않도록 화면 밀도를 조절했습니다."),
+                ],
+                links: vec![
+                    PortfolioLink {
+                        label: String::from("저장소"),
+                        url: String::from("https://github.com/tyange/tyange-blog"),
+                    },
+                    PortfolioLink {
+                        label: String::from("서비스"),
+                        url: String::from("https://blog.tyange.com"),
+                    },
+                ],
+            },
+            PortfolioProject {
+                slug: String::from("tyange-cms-api"),
+                title: String::from("tyange-cms-api"),
+                period: String::from("Rust / Poem / 콘텐츠 인프라"),
+                summary: String::from(
+                    "포스트, 인증, 이미지 업로드, RSS 연동, 예산 관리, 알림, 그리고 이 dev 페이지를 위한 포트폴리오 데이터까지 담당하는 Rust 기반 API입니다.",
+                ),
+                stack: vec![
+                    String::from("Rust"),
+                    String::from("Poem"),
+                    String::from("SQLx"),
+                    String::from("SQLite"),
+                    String::from("JWT"),
+                ],
+                highlights: vec![
+                    String::from("콘텐츠 운영 기능과 개인 운영 도구를 하나의 API 안에서 자연스럽게 공존하도록 설계했습니다."),
+                    String::from("공개 포스트가 바뀌면 블로그 재배포가 이어지도록 후속 흐름까지 고려해 구성했습니다."),
+                ],
+                links: vec![PortfolioLink {
+                    label: String::from("저장소"),
+                    url: String::from("https://github.com/tyange/tyange-cms-api"),
+                }],
+            },
+            PortfolioProject {
+                slug: String::from("tyange-cms"),
+                title: String::from("tyange-cms"),
+                period: String::from("Nuxt 4 / 내부 CMS"),
+                summary: String::from(
+                    "블로그 운영과 개인 관리 흐름에 맞춘 전용 CMS 클라이언트입니다. 포스트 작성, 이미지 업로드, 태그 관리, 예산 관련 작업이 하나의 관리자 화면 안에서 이어집니다.",
+                ),
+                stack: vec![
+                    String::from("Nuxt 4"),
+                    String::from("Vue 3"),
+                    String::from("TypeScript"),
+                    String::from("Tailwind CSS 4"),
+                ],
+                highlights: vec![
+                    String::from("범용 CMS보다는 실제 운영자 한 사람의 동선에 맞춘 좁고 빠른 경험을 목표로 만들었습니다."),
+                    String::from("포스트 CRUD, 이미지 업로드, 태그 조회, 예산 관리가 한 인터페이스 안에서 자연스럽게 연결됩니다."),
+                ],
+                links: vec![PortfolioLink {
+                    label: String::from("저장소"),
+                    url: String::from("https://github.com/tyange/tyange-cms"),
+                }],
+            },
+            PortfolioProject {
+                slug: String::from("tyange-dashboard"),
+                title: String::from("tyange-dashboard"),
+                period: String::from("Solid / 운영 대시보드"),
+                summary: String::from(
+                    "JWT 기반 관리 기능을 빠르게 다루기 위한 운영 대시보드입니다. 활성 예산, 소비 기록, API 키, 알림, 피드 관리 같은 기능을 가볍게 다룰 수 있게 만들었습니다.",
+                ),
+                stack: vec![
+                    String::from("SolidJS"),
+                    String::from("TypeScript"),
+                    String::from("Vite"),
+                    String::from("CMS API"),
+                ],
+                highlights: vec![
+                    String::from("빠른 실행감과 운영 효율을 우선하는 화면으로 구성했고, 배포와 환경 변수 검증까지 포함해 안정성을 챙겼습니다."),
+                    String::from("CMS와 같은 백엔드 계약을 공유하지만, 실제 사용 맥락은 다른 별도의 작업 화면으로 정리했습니다."),
+                ],
+                links: vec![PortfolioLink {
+                    label: String::from("저장소"),
+                    url: String::from("https://github.com/tyange/tyange-dashboard"),
+                }],
+            },
+        ],
+        about: PortfolioAbout {
+            eyebrow: String::from("소개"),
+            headline: String::from("화면의 완성도와 그 뒤의 구조가 함께 좋아지는 일을 선호합니다."),
+            paragraphs: vec![
+                String::from(
+                    "제가 만드는 사이드 프로젝트는 단순한 단일 페이지에 머물지 않는 경우가 많습니다. 콘텐츠 API, 내부 CMS, 퍼블릭 블로그, 운영 대시보드가 서로 연결되어 있어야 하고, 그 연결감까지 하나의 경험처럼 느껴져야 한다고 생각합니다.",
+                ),
+                String::from(
+                    "그래서 저는 컴포넌트 자체보다도 퍼블리싱 흐름, 배포 과정의 마찰, 데이터 계약, 그리고 화면의 리듬을 결정하는 작은 상호작용까지 함께 봅니다.",
+                ),
+            ],
+            services: vec![
+                String::from("제품 화면과 콘텐츠 화면을 위한 프론트엔드 아키텍처 설계"),
+                String::from("디자인 시스템을 고려한 UI 구현"),
+                String::from("내부 툴 및 CMS 운영 화면 제작"),
+                String::from("API 계약을 중심으로 한 프론트엔드 협업"),
+            ],
+            strengths: vec![
+                String::from("거친 아이디어를 구조적인 화면 체계로 정리하는 일"),
+                String::from("프론트엔드 완성도를 백엔드 현실과 연결하는 일"),
+                String::from("개인 프로젝트를 처음부터 끝까지 밀도 있게 완성하는 일"),
+            ],
+        },
+        writing: PortfolioWritingSection {
+            eyebrow: String::from("기록"),
+            title: String::from("dev 태그가 붙은 글"),
+            description: String::from(
+                "이 섹션은 `/posts/search-with-tags?include=dev` 응답을 그대로 사용합니다. 구현 과정, 반복, 제품 판단에 대해 실제로 쓰는 문체를 최대한 유지하는 것이 목표입니다.",
+            ),
+        },
+    }
 }
 
 async fn migrate_budget_periods(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {

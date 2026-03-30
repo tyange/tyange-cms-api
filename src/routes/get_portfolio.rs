@@ -1,4 +1,4 @@
-use crate::models::{AppState, PortfolioResponse};
+use crate::models::{AppState, CustomResponse, PortfolioDocument, PortfolioResponse, PortfolioRow};
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
 use poem::{handler, Error};
@@ -6,25 +6,42 @@ use sqlx::{query_as, Sqlite};
 use std::sync::Arc;
 
 #[handler]
-pub async fn get_portfolio(data: Data<&Arc<AppState>>) -> Result<Json<PortfolioResponse>, Error> {
-    let result = query_as::<Sqlite, PortfolioResponse>(
+pub async fn get_portfolio(
+    data: Data<&Arc<AppState>>,
+) -> Result<Json<CustomResponse<PortfolioResponse>>, Error> {
+    let result = query_as::<Sqlite, PortfolioRow>(
         r#"
-        SELECT content, updated_at
+        SELECT portfolio_id, slug, content, created_at, updated_at
         FROM portfolio
-        WHERE portfolio_id = ?
+        WHERE slug = ?
         "#,
     )
-    .bind(1)
+    .bind("dev")
     .fetch_optional(&data.db)
     .await;
 
     match result {
         Ok(Some(db_portfolio)) => {
+            let content =
+                serde_json::from_str::<PortfolioDocument>(&db_portfolio.content).map_err(|err| {
+                    Error::from_string(
+                        format!("Error parsing portfolio content: {}", err),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                })?;
+
             let portfolio_response = PortfolioResponse {
-                content: db_portfolio.content,
+                portfolio_id: db_portfolio.portfolio_id,
+                slug: db_portfolio.slug,
+                content,
+                created_at: db_portfolio.created_at,
                 updated_at: db_portfolio.updated_at,
             };
-            Ok(Json(portfolio_response))
+            Ok(Json(CustomResponse {
+                status: true,
+                data: Some(portfolio_response),
+                message: None,
+            }))
         }
         Ok(None) => Err(Error::from_string(
             "포트폴리오 데이터를 찾지 못했습니다.",

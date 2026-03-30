@@ -162,22 +162,100 @@ pub struct SignupRequest {
     pub password: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Portfolio {
-    pub portfolio_id: i32,
-    pub content: String,
-    pub updated_at: String,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioLink {
+    pub label: String,
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioIdentity {
+    pub name: String,
+    pub role: String,
+    pub location: String,
+    pub availability: String,
+    pub email: String,
+    pub github_url: String,
+    pub blog_url: String,
+    pub velog_url: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioHero {
+    pub eyebrow: String,
+    pub headline: String,
+    pub summary: String,
+    pub primary_cta: PortfolioLink,
+    pub secondary_cta: PortfolioLink,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioHighlightCard {
+    pub label: String,
+    pub title: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioProject {
+    pub slug: String,
+    pub title: String,
+    pub period: String,
+    pub summary: String,
+    pub stack: Vec<String>,
+    pub highlights: Vec<String>,
+    pub links: Vec<PortfolioLink>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioAbout {
+    pub eyebrow: String,
+    pub headline: String,
+    pub paragraphs: Vec<String>,
+    pub services: Vec<String>,
+    pub strengths: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioWritingSection {
+    pub eyebrow: String,
+    pub title: String,
+    pub description: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioDocument {
+    pub slug: String,
+    pub version: i32,
+    pub identity: PortfolioIdentity,
+    pub hero: PortfolioHero,
+    pub highlight_cards: Vec<PortfolioHighlightCard>,
+    pub guiding_principle: String,
+    pub featured_projects: Vec<PortfolioProject>,
+    pub about: PortfolioAbout,
+    pub writing: PortfolioWritingSection,
 }
 
 #[derive(Debug, Serialize, FromRow)]
-pub struct PortfolioResponse {
+pub struct PortfolioRow {
+    pub portfolio_id: i32,
+    pub slug: String,
     pub content: String,
+    pub created_at: String,
     pub updated_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Clone)]
+pub struct PortfolioResponse {
+    pub portfolio_id: i32,
+    pub slug: String,
+    pub content: PortfolioDocument,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UpdatePortfolioRequest {
-    pub content: String,
+    pub content: PortfolioDocument,
 }
 
 #[derive(Deserialize)]
