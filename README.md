@@ -146,6 +146,7 @@ CORS preflight 처리.
 
 - `GET /posts/search-with-tags`
 포함/제외 태그 조건으로 포스트 검색.
+예시: `?include=dev`
 
 - `GET /post/:post_id`
 단일 포스트 상세 조회.
@@ -177,10 +178,16 @@ blog 대상 포스트 판정은 `status != draft` 이고 `dev` 태그가 없는 
 이미지 업로드 후 웹 경로(`/images/...`) 반환.
 
 - `GET /portfolio`
-포트폴리오 콘텐츠 조회.
+구조화된 포트폴리오 문서 조회.
+
+- `PUT /portfolio` (JWT)
+포트폴리오 문서 생성 또는 수정.
+
+- `DELETE /portfolio` (JWT)
+포트폴리오 문서 삭제.
 
 - `PUT /portfolio/update` (JWT)
-포트폴리오 콘텐츠 수정.
+기존 클라이언트 호환용 별칭. `PUT /portfolio`와 동일하게 동작한다.
 
 ### Budget
 

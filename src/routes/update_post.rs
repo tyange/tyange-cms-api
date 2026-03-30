@@ -2,7 +2,7 @@ use crate::blog_redeploy::{is_blog_redeploy_target, BlogContentEvent, BlogVisibi
 use crate::models::{
     CustomResponse, Post, PostResponseDb, Tag, TagWithCategory, UpdatePostRequest,
 };
-use crate::utils::parse_tags;
+use crate::utils::{parse_tags, serialize_tags};
 use crate::AppState;
 use poem::http::StatusCode;
 use poem::web::{Data, Json, Path};
@@ -33,12 +33,13 @@ pub async fn update_post(
     let updated = query(
         r#"
         UPDATE posts SET title = ?, description = ?, published_at = ?,
-        content = ?, status = ? WHERE post_id = ?
+        tags = ?, content = ?, status = ? WHERE post_id = ?
         "#,
     )
     .bind(&payload.title)
     .bind(&payload.description)
     .bind(&payload.published_at)
+    .bind(serialize_tags(&payload.tags))
     .bind(&payload.content)
     .bind(&payload.status)
     .bind(&post_id)
@@ -90,11 +91,12 @@ pub async fn update_post(
         query(
             r#"
             INSERT INTO post_tags (post_id, tag_id)
-            SELECT ?, tag_id FROM tags WHERE name = ?
+            SELECT ?, tag_id FROM tags WHERE name = ? AND category = ?
             "#,
         )
         .bind(&post_id)
         .bind(tag_name)
+        .bind(&tag.category)
         .execute(&mut *tx)
         .await
         .map_err(|e| {
