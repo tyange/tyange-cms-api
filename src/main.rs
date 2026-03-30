@@ -25,7 +25,6 @@ use crate::routes::create_spending::create_spending;
 use crate::routes::delete_all_spending::delete_all_spending;
 use crate::routes::delete_api_key::delete_api_key;
 use crate::routes::delete_my_match::delete_my_match;
-use crate::routes::delete_portfolio::delete_portfolio;
 use crate::routes::delete_post::delete_post;
 use crate::routes::delete_push_subscription::delete_push_subscription;
 use crate::routes::delete_rss_subscription::delete_rss_subscription;
@@ -134,11 +133,6 @@ async fn main() -> Result<(), std::io::Error> {
             .at("/tags", get(get_count_with_tags))
             .at("/tags-with-category", get(get_tags_with_category))
             .at("/portfolio", get(get_portfolio))
-            .at("/portfolio", put(update_portfolio).with(AdminOnly).with(Auth))
-            .at(
-                "/portfolio",
-                delete(delete_portfolio).with(AdminOnly).with(Auth),
-            )
             .at(
                 "/portfolio/update",
                 put(update_portfolio).with(AdminOnly).with(Auth),

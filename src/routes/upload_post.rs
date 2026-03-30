@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::{
     blog_redeploy::{is_blog_redeploy_target, BlogContentEvent, BlogVisibility},
     models::{CustomResponse, UploadPostRequest, UploadPostResponse},
-    utils::serialize_tags,
     AppState,
 };
 use poem::http::StatusCode;
@@ -34,15 +33,14 @@ pub async fn upload_post(
 
     query(
         r#"
-        INSERT INTO posts (post_id, title, description, published_at, tags, content, writer_id, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO posts (post_id, title, description, published_at, content, writer_id, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&post_id)
     .bind(&payload.title)
     .bind(&payload.description)
     .bind(&payload.published_at)
-    .bind(serialize_tags(&payload.tags))
     .bind(&payload.content)
     .bind(&user.user_id)
     .bind(&payload.status)
@@ -76,12 +74,11 @@ pub async fn upload_post(
         query(
             r#"
             INSERT INTO post_tags (post_id, tag_id)
-            SELECT ?, tag_id FROM tags WHERE name = ? AND category = ?
+            SELECT ?, tag_id FROM tags WHERE name = ?
             "#,
         )
         .bind(&post_id)
         .bind(tag_name)
-        .bind(&tag.category)
         .execute(&mut *tx)
         .await
         .map_err(|e| {

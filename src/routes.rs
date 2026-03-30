@@ -8,7 +8,6 @@ pub mod create_spending;
 pub mod delete_all_spending;
 pub mod delete_api_key;
 pub mod delete_my_match;
-pub mod delete_portfolio;
 pub mod delete_post;
 pub mod delete_push_subscription;
 pub mod delete_rss_subscription;
@@ -53,8 +52,6 @@ mod feed_items_test;
 mod match_flow_test;
 #[cfg(test)]
 mod post_authorization_test;
-#[cfg(test)]
-mod portfolio_routes_test;
 #[cfg(test)]
 mod signup_test;
 #[cfg(test)]

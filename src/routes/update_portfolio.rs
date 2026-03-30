@@ -1,75 +1,37 @@
-use crate::models::{AppState, CustomResponse, PortfolioResponse, UpdatePortfolioRequest};
+use crate::models::{AppState, CustomResponse, Portfolio, UpdatePortfolioRequest};
+use chrono::Utc;
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
 use poem::{handler, Error};
-use sqlx::{query, query_as, Sqlite};
+use sqlx::query;
 use std::sync::Arc;
 
 #[handler]
 pub async fn update_portfolio(
     Json(payload): Json<UpdatePortfolioRequest>,
     data: Data<&Arc<AppState>>,
-) -> Result<Json<CustomResponse<PortfolioResponse>>, Error> {
-    let serialized = serde_json::to_string(&payload.content).map_err(|err| {
-        Error::from_string(
-            format!("포트폴리오 직렬화 실패: {}", err),
-            StatusCode::BAD_REQUEST,
-        )
-    })?;
-
+) -> Result<Json<CustomResponse<Portfolio>>, Error> {
     let result = query(
-        r#"
-        INSERT INTO portfolio (portfolio_id, slug, content, created_at, updated_at)
-        VALUES (
-            COALESCE((SELECT portfolio_id FROM portfolio WHERE slug = ? LIMIT 1), 1),
-            ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT(portfolio_id) DO UPDATE SET
-            slug = excluded.slug,
-            content = excluded.content,
-            updated_at = CURRENT_TIMESTAMP
-        "#,
+        r"
+        UPDATE portfolio SET content = $1
+        ",
     )
-    .bind(&payload.content.slug)
-    .bind(&payload.content.slug)
-    .bind(serialized)
+    .bind(&payload.content)
     .execute(&data.db)
     .await;
 
     match result {
-        Ok(_) => {
-            let saved = query_as::<Sqlite, crate::models::PortfolioRow>(
-                r#"
-                SELECT portfolio_id, slug, content, created_at, updated_at
-                FROM portfolio
-                WHERE slug = ?
-                LIMIT 1
-                "#,
-            )
-            .bind(&payload.content.slug)
-            .fetch_one(&data.db)
-            .await
-            .map_err(|err| {
-                Error::from_string(
-                    format!("포트폴리오 조회 실패: {}", err),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
-            })?;
-
-            Ok(Json(CustomResponse {
-                status: true,
-                data: Some(PortfolioResponse {
-                    portfolio_id: saved.portfolio_id,
-                    slug: saved.slug,
-                    content: payload.content,
-                    created_at: saved.created_at,
-                    updated_at: saved.updated_at,
-                }),
-                message: Some(String::from("포트폴리오를 업데이트 했습니다.")),
-            }))
-        }
-        Err(err) => Err(Error::from_string(
-            format!("Failed to update portfolio: {}", err),
+        Ok(_) => Ok(Json(CustomResponse {
+            status: true,
+            data: Some(Portfolio {
+                portfolio_id: 1,
+                content: payload.content,
+                updated_at: Utc::now().to_string(),
+            }),
+            message: Some(String::from("포트폴리오를 업데이트 했습니다.")),
+        })),
+        Err(_) => Err(Error::from_string(
+            "Failed to update post.",
             StatusCode::INTERNAL_SERVER_ERROR,
         )),
     }
