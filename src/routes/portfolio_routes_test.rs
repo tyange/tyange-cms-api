@@ -58,6 +58,55 @@ async fn get_portfolio_returns_seeded_document_and_put_updates_it() {
         .object()
         .get("value")
         .assert_string("2");
+    initial_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("career")
+        .object()
+        .get("summary_label")
+        .assert_string("경력");
+    initial_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("career")
+        .object()
+        .get("companies")
+        .array()
+        .get(0)
+        .object()
+        .get("company")
+        .assert_string("(주)미트박스글로벌");
+    initial_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("career")
+        .object()
+        .get("companies")
+        .array()
+        .get(0)
+        .object()
+        .get("items")
+        .array()
+        .get(0)
+        .object()
+        .get("bullets")
+        .array()
+        .get(0)
+        .assert_string(
+            "기존 화면 구조와 스타일 체계를 점진적으로 정리하며, 더 나은 유지보수와 확장이 가능하도록 모던한 프론트엔드 방식으로 개선했습니다.",
+        );
 
     let updated = cli
         .put("/portfolio")
@@ -103,6 +152,26 @@ async fn get_portfolio_returns_seeded_document_and_put_updates_it() {
                     "title": "dev 글",
                     "description": "설명"
                 },
+                "career": {
+                    "summary_label": "경력",
+                    "summary_value": "4년",
+                    "companies": [
+                        {
+                            "company": "테스트 회사",
+                            "period": "2020.01 - 2022.12",
+                            "employment_type": "정규직",
+                            "role": "프론트엔드 개발",
+                            "position": "사원",
+                            "items": [
+                                {
+                                    "title": "서비스 운영",
+                                    "period": "2021.01 - 2022.12",
+                                    "bullets": ["React 운영", "TypeScript 전환"]
+                                }
+                            ]
+                        }
+                    ]
+                },
                 "currently_building": [
                     {
                         "name": "포트폴리오 개편",
@@ -141,6 +210,38 @@ async fn get_portfolio_returns_seeded_document_and_put_updates_it() {
         .object()
         .get("name")
         .assert_string("포트폴리오 개편");
+    updated_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("career")
+        .object()
+        .get("summary_value")
+        .assert_string("4년");
+    updated_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("career")
+        .object()
+        .get("companies")
+        .array()
+        .get(0)
+        .object()
+        .get("items")
+        .array()
+        .get(0)
+        .object()
+        .get("bullets")
+        .array()
+        .get(1)
+        .assert_string("TypeScript 전환");
 }
 
 #[tokio::test]

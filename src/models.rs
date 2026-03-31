@@ -237,6 +237,34 @@ pub struct PortfolioCurrentItem {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioCareerItem {
+    pub title: String,
+    #[serde(default)]
+    pub period: Option<String>,
+    #[serde(default)]
+    pub bullets: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioCareerCompany {
+    pub company: String,
+    pub period: String,
+    pub employment_type: String,
+    pub role: String,
+    pub position: String,
+    #[serde(default)]
+    pub items: Vec<PortfolioCareerItem>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioCareerSection {
+    pub summary_label: String,
+    pub summary_value: String,
+    #[serde(default)]
+    pub companies: Vec<PortfolioCareerCompany>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortfolioDocument {
     pub slug: String,
     pub version: i32,
@@ -249,6 +277,8 @@ pub struct PortfolioDocument {
     pub featured_projects: Vec<PortfolioProject>,
     pub about: PortfolioAbout,
     pub writing: PortfolioWritingSection,
+    #[serde(default)]
+    pub career: Option<PortfolioCareerSection>,
     #[serde(default)]
     pub currently_building: Option<Vec<PortfolioCurrentItem>>,
 }
