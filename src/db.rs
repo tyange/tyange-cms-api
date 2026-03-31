@@ -147,13 +147,29 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
 }
 
 async fn ensure_default_portfolio(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
-    let existing: Option<i64> =
-        query_scalar("SELECT portfolio_id FROM portfolio WHERE slug = ? LIMIT 1")
-            .bind("dev")
-            .fetch_optional(pool)
-            .await?;
+    let existing: Option<String> = query_scalar("SELECT content FROM portfolio WHERE slug = ? LIMIT 1")
+        .bind("dev")
+        .fetch_optional(pool)
+        .await?;
 
-    if existing.is_some() {
+    if let Some(content) = existing {
+        let portfolio = serde_json::from_str::<PortfolioDocument>(&content)
+            .unwrap_or_else(|_| default_portfolio_document());
+
+        if portfolio_document_is_effectively_empty(&portfolio) {
+            query(
+                r#"
+                UPDATE portfolio
+                SET content = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE slug = ?
+                "#,
+            )
+            .bind(serde_json::to_string(&default_portfolio_document()).unwrap_or_default())
+            .bind("dev")
+            .execute(pool)
+            .await?;
+        }
+
         return Ok(());
     }
 
@@ -455,19 +471,62 @@ fn default_portfolio_document() -> PortfolioDocument {
                                 String::from("관련기술: Vite, TypeScript, Jenkins"),
                             ],
                         },
-                        PortfolioCareerItem {
-                            title: String::from("운영 서비스 지속 개선"),
-                            period: None,
-                            bullets: vec![String::from(
-                                "실제 운영 서비스 대상, 유저 피드백 기반 지속 개선 중",
-                            )],
-                        },
                     ],
                 },
             ],
         }),
         currently_building: None,
     }
+}
+
+fn portfolio_document_is_effectively_empty(document: &PortfolioDocument) -> bool {
+    fn is_blank(value: &str) -> bool {
+        value.trim().is_empty()
+    }
+
+    is_blank(&document.identity.name)
+        && is_blank(&document.identity.role)
+        && is_blank(&document.identity.location)
+        && is_blank(&document.identity.availability)
+        && is_blank(&document.identity.email)
+        && is_blank(&document.identity.github_url)
+        && is_blank(&document.identity.blog_url)
+        && document
+            .identity
+            .velog_url
+            .as_ref()
+            .map_or(true, |value| is_blank(value))
+        && is_blank(&document.hero.eyebrow)
+        && is_blank(&document.hero.headline)
+        && is_blank(&document.hero.summary)
+        && is_blank(&document.hero.primary_cta.label)
+        && is_blank(&document.hero.primary_cta.url)
+        && is_blank(&document.hero.secondary_cta.label)
+        && is_blank(&document.hero.secondary_cta.url)
+        && document.highlight_cards.is_empty()
+        && document.metrics.as_ref().is_none_or(|metrics| metrics.is_empty())
+        && is_blank(&document.guiding_principle)
+        && document.featured_projects.is_empty()
+        && is_blank(&document.about.eyebrow)
+        && is_blank(&document.about.headline)
+        && document.about.paragraphs.is_empty()
+        && document.about.services.is_empty()
+        && document.about.strengths.is_empty()
+        && is_blank(&document.writing.eyebrow)
+        && is_blank(&document.writing.title)
+        && is_blank(&document.writing.description)
+        && document
+            .career
+            .as_ref()
+            .map_or(true, |career| {
+                is_blank(&career.summary_label)
+                    && is_blank(&career.summary_value)
+                    && career.companies.is_empty()
+            })
+        && document
+            .currently_building
+            .as_ref()
+            .map_or(true, |current| current.is_empty())
 }
 
 async fn migrate_budget_periods(pool: &SqlitePool) -> std::result::Result<(), sqlx::Error> {
