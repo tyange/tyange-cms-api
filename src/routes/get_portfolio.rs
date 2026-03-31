@@ -1,3 +1,4 @@
+use crate::db::merge_portfolio_document_with_defaults;
 use crate::models::{AppState, CustomResponse, PortfolioDocument, PortfolioResponse, PortfolioRow};
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
@@ -33,7 +34,7 @@ pub async fn get_portfolio(
             let portfolio_response = PortfolioResponse {
                 portfolio_id: db_portfolio.portfolio_id,
                 slug: db_portfolio.slug,
-                content,
+                content: merge_portfolio_document_with_defaults(content),
                 created_at: db_portfolio.created_at,
                 updated_at: db_portfolio.updated_at,
             };

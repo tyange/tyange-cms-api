@@ -1,3 +1,4 @@
+use crate::db::merge_portfolio_document_with_defaults;
 use crate::models::{
     AppState, CustomResponse, PortfolioResponse, PortfolioRow, UpdatePortfolioRequest,
 };
@@ -12,7 +13,9 @@ pub async fn update_portfolio(
     Json(payload): Json<UpdatePortfolioRequest>,
     data: Data<&Arc<AppState>>,
 ) -> Result<Json<CustomResponse<PortfolioResponse>>, Error> {
-    let serialized = serde_json::to_string(&payload.content).map_err(|err| {
+    let normalized_content = merge_portfolio_document_with_defaults(payload.content);
+
+    let serialized = serde_json::to_string(&normalized_content).map_err(|err| {
         Error::from_string(
             format!("포트폴리오 직렬화 실패: {}", err),
             StatusCode::BAD_REQUEST,
@@ -32,8 +35,8 @@ pub async fn update_portfolio(
             updated_at = CURRENT_TIMESTAMP
         "#,
     )
-    .bind(&payload.content.slug)
-    .bind(&payload.content.slug)
+    .bind(&normalized_content.slug)
+    .bind(&normalized_content.slug)
     .bind(serialized)
     .execute(&data.db)
     .await;
@@ -48,7 +51,7 @@ pub async fn update_portfolio(
                 LIMIT 1
                 "#,
             )
-            .bind(&payload.content.slug)
+            .bind(&normalized_content.slug)
             .fetch_one(&data.db)
             .await
             .map_err(|err| {
@@ -63,7 +66,7 @@ pub async fn update_portfolio(
                 data: Some(PortfolioResponse {
                     portfolio_id: saved.portfolio_id,
                     slug: saved.slug,
-                    content: payload.content,
+                    content: normalized_content,
                     created_at: saved.created_at,
                     updated_at: saved.updated_at,
                 }),

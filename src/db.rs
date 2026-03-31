@@ -187,7 +187,7 @@ async fn ensure_default_portfolio(pool: &SqlitePool) -> std::result::Result<(), 
     Ok(())
 }
 
-fn default_portfolio_document() -> PortfolioDocument {
+pub fn default_portfolio_document() -> PortfolioDocument {
     PortfolioDocument {
         slug: String::from("dev"),
         version: 1,
@@ -476,6 +476,173 @@ fn default_portfolio_document() -> PortfolioDocument {
             ],
         }),
         currently_building: None,
+    }
+}
+
+pub fn merge_portfolio_document_with_defaults(document: PortfolioDocument) -> PortfolioDocument {
+    let defaults = default_portfolio_document();
+
+    PortfolioDocument {
+        slug: if document.slug.trim().is_empty() {
+            defaults.slug
+        } else {
+            document.slug
+        },
+        version: if document.version == 0 {
+            defaults.version
+        } else {
+            document.version
+        },
+        identity: PortfolioIdentity {
+            name: if document.identity.name.trim().is_empty() {
+                defaults.identity.name
+            } else {
+                document.identity.name
+            },
+            role: if document.identity.role.trim().is_empty() {
+                defaults.identity.role
+            } else {
+                document.identity.role
+            },
+            location: if document.identity.location.trim().is_empty() {
+                defaults.identity.location
+            } else {
+                document.identity.location
+            },
+            availability: if document.identity.availability.trim().is_empty() {
+                defaults.identity.availability
+            } else {
+                document.identity.availability
+            },
+            email: if document.identity.email.trim().is_empty() {
+                defaults.identity.email
+            } else {
+                document.identity.email
+            },
+            github_url: if document.identity.github_url.trim().is_empty() {
+                defaults.identity.github_url
+            } else {
+                document.identity.github_url
+            },
+            blog_url: if document.identity.blog_url.trim().is_empty() {
+                defaults.identity.blog_url
+            } else {
+                document.identity.blog_url
+            },
+            velog_url: document.identity.velog_url.or(defaults.identity.velog_url),
+        },
+        hero: PortfolioHero {
+            eyebrow: if document.hero.eyebrow.trim().is_empty() {
+                defaults.hero.eyebrow
+            } else {
+                document.hero.eyebrow
+            },
+            headline: if document.hero.headline.trim().is_empty() {
+                defaults.hero.headline
+            } else {
+                document.hero.headline
+            },
+            summary: if document.hero.summary.trim().is_empty() {
+                defaults.hero.summary
+            } else {
+                document.hero.summary
+            },
+            primary_cta: PortfolioLink {
+                label: if document.hero.primary_cta.label.trim().is_empty() {
+                    defaults.hero.primary_cta.label
+                } else {
+                    document.hero.primary_cta.label
+                },
+                url: if document.hero.primary_cta.url.trim().is_empty() {
+                    defaults.hero.primary_cta.url
+                } else {
+                    document.hero.primary_cta.url
+                },
+            },
+            secondary_cta: PortfolioLink {
+                label: if document.hero.secondary_cta.label.trim().is_empty() {
+                    defaults.hero.secondary_cta.label
+                } else {
+                    document.hero.secondary_cta.label
+                },
+                url: if document.hero.secondary_cta.url.trim().is_empty() {
+                    defaults.hero.secondary_cta.url
+                } else {
+                    document.hero.secondary_cta.url
+                },
+            },
+        },
+        highlight_cards: if document.highlight_cards.is_empty() {
+            defaults.highlight_cards
+        } else {
+            document.highlight_cards
+        },
+        metrics: match document.metrics {
+            Some(metrics) if !metrics.is_empty() => Some(metrics),
+            _ => defaults.metrics,
+        },
+        guiding_principle: if document.guiding_principle.trim().is_empty() {
+            defaults.guiding_principle
+        } else {
+            document.guiding_principle
+        },
+        featured_projects: if document.featured_projects.is_empty() {
+            defaults.featured_projects
+        } else {
+            document.featured_projects
+        },
+        about: PortfolioAbout {
+            eyebrow: if document.about.eyebrow.trim().is_empty() {
+                defaults.about.eyebrow
+            } else {
+                document.about.eyebrow
+            },
+            headline: if document.about.headline.trim().is_empty() {
+                defaults.about.headline
+            } else {
+                document.about.headline
+            },
+            paragraphs: if document.about.paragraphs.is_empty() {
+                defaults.about.paragraphs
+            } else {
+                document.about.paragraphs
+            },
+            services: if document.about.services.is_empty() {
+                defaults.about.services
+            } else {
+                document.about.services
+            },
+            strengths: if document.about.strengths.is_empty() {
+                defaults.about.strengths
+            } else {
+                document.about.strengths
+            },
+        },
+        writing: PortfolioWritingSection {
+            eyebrow: if document.writing.eyebrow.trim().is_empty() {
+                defaults.writing.eyebrow
+            } else {
+                document.writing.eyebrow
+            },
+            title: if document.writing.title.trim().is_empty() {
+                defaults.writing.title
+            } else {
+                document.writing.title
+            },
+            description: if document.writing.description.trim().is_empty() {
+                defaults.writing.description
+            } else {
+                document.writing.description
+            },
+        },
+        career: match document.career {
+            Some(career) if !career.companies.is_empty() => Some(career),
+            _ => defaults.career,
+        },
+        currently_building: match document.currently_building {
+            Some(currently_building) if !currently_building.is_empty() => Some(currently_building),
+            _ => defaults.currently_building,
+        },
     }
 }
 
