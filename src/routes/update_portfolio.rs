@@ -1,8 +1,10 @@
-use crate::models::{AppState, CustomResponse, PortfolioResponse, PortfolioRow, UpdatePortfolioRequest};
+use crate::models::{
+    AppState, CustomResponse, PortfolioResponse, PortfolioRow, UpdatePortfolioRequest,
+};
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
-use poem::{handler, Error};
-use sqlx::{query, query_as, Sqlite};
+use poem::{Error, handler};
+use sqlx::{Sqlite, query, query_as};
 use std::sync::Arc;
 
 #[handler]

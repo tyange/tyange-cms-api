@@ -1,8 +1,8 @@
 use crate::models::{AppState, CustomResponse, PortfolioDocument, PortfolioResponse, PortfolioRow};
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
-use poem::{handler, Error};
-use sqlx::{query_as, Sqlite};
+use poem::{Error, handler};
+use sqlx::{Sqlite, query_as};
 use std::sync::Arc;
 
 #[handler]
@@ -22,8 +22,8 @@ pub async fn get_portfolio(
 
     match result {
         Ok(Some(db_portfolio)) => {
-            let content =
-                serde_json::from_str::<PortfolioDocument>(&db_portfolio.content).map_err(|err| {
+            let content = serde_json::from_str::<PortfolioDocument>(&db_portfolio.content)
+                .map_err(|err| {
                     Error::from_string(
                         format!("Error parsing portfolio content: {}", err),
                         StatusCode::INTERNAL_SERVER_ERROR,

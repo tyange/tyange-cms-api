@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use poem::{get, http::StatusCode, test::TestClient, EndpointExt, Route};
+use poem::{EndpointExt, Route, get, http::StatusCode, test::TestClient};
 use serde_json::json;
-use sqlx::{query_scalar, SqlitePool};
+use sqlx::{SqlitePool, query_scalar};
 
 use crate::{
     db::init_db,
@@ -45,6 +45,19 @@ async fn get_portfolio_returns_seeded_document_and_put_updates_it() {
         .object()
         .get("name")
         .assert_string("TYANGE");
+    initial_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("metrics")
+        .array()
+        .get(0)
+        .object()
+        .get("value")
+        .assert_string("2");
 
     let updated = cli
         .put("/portfolio")
@@ -73,6 +86,9 @@ async fn get_portfolio_returns_seeded_document_and_put_updates_it() {
                     { "label": "집중", "title": "인터페이스" },
                     { "label": "스택", "title": "Next.js" }
                 ],
+                "metrics": [
+                    { "value": "2", "unit": "개사", "description": "프론트엔드 개발자로 재직한 이력" }
+                ],
                 "guiding_principle": "모든 요소는 이유가 있어야 한다.",
                 "featured_projects": [],
                 "about": {
@@ -86,7 +102,14 @@ async fn get_portfolio_returns_seeded_document_and_put_updates_it() {
                     "eyebrow": "기록",
                     "title": "dev 글",
                     "description": "설명"
-                }
+                },
+                "currently_building": [
+                    {
+                        "name": "포트폴리오 개편",
+                        "summary": "API와 프론트 데이터를 맞추는 중",
+                        "stack": ["Next.js", "Rust"]
+                    }
+                ]
             }
         }))
         .send()
@@ -105,6 +128,19 @@ async fn get_portfolio_returns_seeded_document_and_put_updates_it() {
         .object()
         .get("headline")
         .assert_string("업데이트된 헤드라인");
+    updated_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("currently_building")
+        .array()
+        .get(0)
+        .object()
+        .get("name")
+        .assert_string("포트폴리오 개편");
 }
 
 #[tokio::test]
