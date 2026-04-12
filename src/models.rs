@@ -169,71 +169,13 @@ pub struct PortfolioLink {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioIdentity {
-    pub name: String,
-    pub role: String,
-    pub location: String,
-    pub availability: String,
-    pub email: String,
-    pub github_url: String,
-    pub blog_url: String,
-    pub velog_url: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioHero {
-    pub eyebrow: String,
-    pub headline: String,
-    pub summary: String,
-    pub primary_cta: PortfolioLink,
-    pub secondary_cta: PortfolioLink,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioHighlightCard {
-    pub label: String,
-    pub title: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioMetric {
-    pub value: String,
-    pub unit: String,
-    pub description: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortfolioProject {
     pub slug: String,
     pub title: String,
     pub period: String,
     pub summary: String,
     pub stack: Vec<String>,
-    pub highlights: Vec<String>,
     pub links: Vec<PortfolioLink>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioAbout {
-    pub eyebrow: String,
-    pub headline: String,
-    pub paragraphs: Vec<String>,
-    pub services: Vec<String>,
-    pub strengths: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioWritingSection {
-    pub eyebrow: String,
-    pub title: String,
-    pub description: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioCurrentItem {
-    pub name: String,
-    pub summary: String,
-    pub stack: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -268,19 +210,11 @@ pub struct PortfolioCareerSection {
 pub struct PortfolioDocument {
     pub slug: String,
     pub version: i32,
-    pub identity: PortfolioIdentity,
-    pub hero: PortfolioHero,
-    pub highlight_cards: Vec<PortfolioHighlightCard>,
-    #[serde(default)]
-    pub metrics: Option<Vec<PortfolioMetric>>,
-    pub guiding_principle: String,
+    pub email: String,
+    pub github_url: String,
     pub featured_projects: Vec<PortfolioProject>,
-    pub about: PortfolioAbout,
-    pub writing: PortfolioWritingSection,
     #[serde(default)]
     pub career: Option<PortfolioCareerSection>,
-    #[serde(default)]
-    pub currently_building: Option<Vec<PortfolioCurrentItem>>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
