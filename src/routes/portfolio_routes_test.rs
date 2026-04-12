@@ -39,8 +39,14 @@ async fn get_portfolio_returns_not_found_initially_and_put_creates_and_updates_i
             "content": {
                 "slug": "dev",
                 "version": 1,
-                "email": "usun16@gmail.com",
-                "github_url": "https://github.com/tyange",
+                "identity": {
+                    "name": "TYANGE",
+                    "role": "프론트엔드 개발자",
+                    "location": "서울, 대한민국",
+                    "availability": "브랜딩과 제품 완성도가 중요한 작업을 선별해 진행합니다",
+                    "email": "usun16@gmail.com",
+                    "github_url": "https://github.com/tyange"
+                },
                 "featured_projects": [],
                 "career": {
                     "summary_label": "경력",
@@ -75,6 +81,8 @@ async fn get_portfolio_returns_not_found_initially_and_put_creates_and_updates_i
         .get("data")
         .object()
         .get("content")
+        .object()
+        .get("identity")
         .object()
         .get("email")
         .assert_string("usun16@gmail.com");
@@ -131,8 +139,14 @@ async fn delete_portfolio_removes_document() {
             "content": {
                 "slug": "dev",
                 "version": 1,
-                "email": "",
-                "github_url": "",
+                "identity": {
+                    "name": "Test",
+                    "role": "dev",
+                    "location": "Seoul",
+                    "availability": "",
+                    "email": "",
+                    "github_url": ""
+                },
                 "featured_projects": []
             }
         }))

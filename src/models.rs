@@ -169,13 +169,80 @@ pub struct PortfolioLink {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioIdentity {
+    pub name: String,
+    pub role: String,
+    pub location: String,
+    pub availability: String,
+    pub email: String,
+    pub github_url: String,
+    #[serde(default)]
+    pub blog_url: Option<String>,
+    #[serde(default)]
+    pub velog_url: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioCtaButton {
+    pub label: String,
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioHero {
+    pub eyebrow: String,
+    pub headline: String,
+    pub summary: String,
+    #[serde(default)]
+    pub primary_cta: Option<PortfolioCtaButton>,
+    #[serde(default)]
+    pub secondary_cta: Option<PortfolioCtaButton>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioHighlightCard {
+    pub label: String,
+    pub title: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioMetric {
+    pub value: String,
+    pub unit: String,
+    pub description: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortfolioProject {
     pub slug: String,
     pub title: String,
     pub period: String,
     pub summary: String,
+    #[serde(default)]
     pub stack: Vec<String>,
+    #[serde(default)]
+    pub highlights: Vec<String>,
+    #[serde(default)]
     pub links: Vec<PortfolioLink>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioAbout {
+    pub eyebrow: String,
+    pub headline: String,
+    #[serde(default)]
+    pub paragraphs: Vec<String>,
+    #[serde(default)]
+    pub services: Vec<String>,
+    #[serde(default)]
+    pub strengths: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioWriting {
+    pub eyebrow: String,
+    pub title: String,
+    pub description: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -210,11 +277,25 @@ pub struct PortfolioCareerSection {
 pub struct PortfolioDocument {
     pub slug: String,
     pub version: i32,
-    pub email: String,
-    pub github_url: String,
+    pub identity: PortfolioIdentity,
+    #[serde(default)]
+    pub hero: Option<PortfolioHero>,
+    #[serde(default)]
+    pub highlight_cards: Vec<PortfolioHighlightCard>,
+    #[serde(default)]
+    pub metrics: Vec<PortfolioMetric>,
+    #[serde(default)]
+    pub guiding_principle: Option<String>,
+    #[serde(default)]
     pub featured_projects: Vec<PortfolioProject>,
     #[serde(default)]
+    pub about: Option<PortfolioAbout>,
+    #[serde(default)]
+    pub writing: Option<PortfolioWriting>,
+    #[serde(default)]
     pub career: Option<PortfolioCareerSection>,
+    #[serde(default)]
+    pub currently_building: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
