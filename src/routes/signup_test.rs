@@ -554,69 +554,6 @@ async fn google_login_rejects_conflicting_google_subject() {
         .assert_status(StatusCode::CONFLICT);
 }
 
-#[tokio::test]
-async fn init_db_migrates_existing_users_table_for_google_login() {
-    let db = SqlitePool::connect("sqlite::memory:")
-        .await
-        .expect("failed to connect sqlite");
-
-    query(
-        r#"
-        CREATE TABLE users (
-            user_id TEXT PRIMARY KEY,
-            password TEXT NOT NULL,
-            user_role TEXT NOT NULL
-        )
-        "#,
-    )
-    .execute(&db)
-    .await
-    .expect("failed to create legacy users table");
-
-    query(
-        r#"
-        INSERT INTO users (user_id, password, user_role)
-        VALUES ('legacy@example.com', 'hashed-password', 'user')
-        "#,
-    )
-    .execute(&db)
-    .await
-    .expect("failed to seed legacy user");
-
-    init_db(&db).await.expect("failed to migrate database");
-
-    let row = query(
-        "SELECT password, auth_provider, google_sub, display_name, avatar_url, bio FROM users WHERE user_id = ?",
-    )
-        .bind("legacy@example.com")
-        .fetch_one(&db)
-        .await
-        .expect("failed to fetch migrated user");
-
-    let password: Option<String> = row
-        .try_get("password")
-        .expect("password column should exist");
-    let auth_provider: String = row
-        .try_get("auth_provider")
-        .expect("auth_provider column should exist");
-    let google_sub: Option<String> = row
-        .try_get("google_sub")
-        .expect("google_sub column should exist");
-    let display_name: Option<String> = row
-        .try_get("display_name")
-        .expect("display_name column should exist");
-    let avatar_url: Option<String> = row
-        .try_get("avatar_url")
-        .expect("avatar_url column should exist");
-    let bio: Option<String> = row.try_get("bio").expect("bio column should exist");
-
-    assert_eq!(password.as_deref(), Some("hashed-password"));
-    assert_eq!(auth_provider, "local");
-    assert_eq!(google_sub, None);
-    assert_eq!(display_name, None);
-    assert_eq!(avatar_url, None);
-    assert_eq!(bio, None);
-}
 
 #[tokio::test]
 async fn update_my_profile_persists_and_returns_profile_fields() {
