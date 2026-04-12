@@ -278,23 +278,23 @@ pub struct PortfolioDocument {
     pub slug: String,
     pub version: i32,
     pub identity: PortfolioIdentity,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub hero: Option<PortfolioHero>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub highlight_cards: Vec<PortfolioHighlightCard>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub metrics: Vec<PortfolioMetric>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub guiding_principle: Option<String>,
     #[serde(default)]
     pub featured_projects: Vec<PortfolioProject>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub about: Option<PortfolioAbout>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub writing: Option<PortfolioWriting>,
     #[serde(default)]
     pub career: Option<PortfolioCareerSection>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub currently_building: Option<serde_json::Value>,
 }
 
