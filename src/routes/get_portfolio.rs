@@ -1,6 +1,7 @@
 use crate::models::{
     AppState, CustomResponse, PortfolioCareerSection, PortfolioDocument, PortfolioIdentity,
-    PortfolioMasterRow, PortfolioMeta, PortfolioProject, PortfolioResponse, PortfolioSectionRow,
+    PortfolioIntroSection, PortfolioMasterRow, PortfolioMeta, PortfolioProject,
+    PortfolioResponse, PortfolioSectionRow,
 };
 use poem::http::StatusCode;
 use poem::web::{Data, Json};
@@ -63,6 +64,7 @@ pub async fn get_portfolio(
     let mut identity: Option<PortfolioIdentity> = None;
     let mut featured_projects: Vec<PortfolioProject> = Vec::new();
     let mut career: Option<PortfolioCareerSection> = None;
+    let mut intro: Option<PortfolioIntroSection> = None;
     let mut latest_updated_at = String::new();
 
     for section in &sections {
@@ -104,6 +106,14 @@ pub async fn get_portfolio(
                     )
                 })?);
             }
+            "intro" => {
+                intro = Some(serde_json::from_str(&section.content).map_err(|err| {
+                    Error::from_string(
+                        format!("Error parsing intro section: {}", err),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                })?);
+            }
             _ => {}
         }
     }
@@ -128,6 +138,7 @@ pub async fn get_portfolio(
         identity,
         featured_projects,
         career,
+        intro,
     };
 
     Ok(Json(CustomResponse {

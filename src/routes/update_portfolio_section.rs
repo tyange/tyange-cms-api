@@ -1,6 +1,6 @@
 use crate::models::{
-    AppState, CustomResponse, PortfolioCareerSection, PortfolioIdentity, PortfolioMeta,
-    PortfolioProject,
+    AppState, CustomResponse, PortfolioCareerSection, PortfolioIdentity, PortfolioIntroSection,
+    PortfolioMeta, PortfolioProject,
 };
 use poem::http::StatusCode;
 use poem::web::{Data, Json, Path};
@@ -39,6 +39,11 @@ fn validate_section(section_key: &str, value: &serde_json::Value) -> Result<Stri
         "career" => {
             let _: PortfolioCareerSection = serde_json::from_value(value.clone())
                 .map_err(|e| format!("career 검증 실패: {}", e))?;
+            serde_json::to_string(value).map_err(|e| e.to_string())
+        }
+        "intro" => {
+            let _: PortfolioIntroSection = serde_json::from_value(value.clone())
+                .map_err(|e| format!("intro 검증 실패: {}", e))?;
             serde_json::to_string(value).map_err(|e| e.to_string())
         }
         _ => Err(format!("알 수 없는 섹션: {}", section_key)),

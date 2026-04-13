@@ -218,6 +218,19 @@ pub struct PortfolioCareerSection {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioTechStackItem {
+    pub name: String,
+    pub icon_url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioIntroSection {
+    pub content: String,
+    #[serde(default)]
+    pub tech_stack: Vec<PortfolioTechStackItem>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortfolioMeta {
     pub slug: String,
     pub version: i32,
@@ -232,6 +245,8 @@ pub struct PortfolioDocument {
     pub featured_projects: Vec<PortfolioProject>,
     #[serde(default)]
     pub career: Option<PortfolioCareerSection>,
+    #[serde(default)]
+    pub intro: Option<PortfolioIntroSection>,
 }
 
 #[derive(Debug, FromRow)]
