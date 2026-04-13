@@ -183,36 +183,6 @@ pub struct PortfolioIdentity {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioCtaButton {
-    pub label: String,
-    pub url: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioHero {
-    pub eyebrow: String,
-    pub headline: String,
-    pub summary: String,
-    #[serde(default)]
-    pub primary_cta: Option<PortfolioCtaButton>,
-    #[serde(default)]
-    pub secondary_cta: Option<PortfolioCtaButton>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioHighlightCard {
-    pub label: String,
-    pub title: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioMetric {
-    pub value: String,
-    pub unit: String,
-    pub description: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortfolioProject {
     pub slug: String,
     pub title: String,
@@ -224,25 +194,6 @@ pub struct PortfolioProject {
     pub highlights: Vec<String>,
     #[serde(default)]
     pub links: Vec<PortfolioLink>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioAbout {
-    pub eyebrow: String,
-    pub headline: String,
-    #[serde(default)]
-    pub paragraphs: Vec<String>,
-    #[serde(default)]
-    pub services: Vec<String>,
-    #[serde(default)]
-    pub strengths: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PortfolioWriting {
-    pub eyebrow: String,
-    pub title: String,
-    pub description: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -274,34 +225,34 @@ pub struct PortfolioCareerSection {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PortfolioMeta {
+    pub slug: String,
+    pub version: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortfolioDocument {
     pub slug: String,
     pub version: i32,
     pub identity: PortfolioIdentity,
-    #[serde(default, skip_serializing)]
-    pub hero: Option<PortfolioHero>,
-    #[serde(default, skip_serializing)]
-    pub highlight_cards: Vec<PortfolioHighlightCard>,
-    #[serde(default, skip_serializing)]
-    pub metrics: Vec<PortfolioMetric>,
-    #[serde(default, skip_serializing)]
-    pub guiding_principle: Option<String>,
     #[serde(default)]
     pub featured_projects: Vec<PortfolioProject>,
-    #[serde(default, skip_serializing)]
-    pub about: Option<PortfolioAbout>,
-    #[serde(default, skip_serializing)]
-    pub writing: Option<PortfolioWriting>,
     #[serde(default)]
     pub career: Option<PortfolioCareerSection>,
-    #[serde(default, skip_serializing)]
-    pub currently_building: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Serialize, FromRow)]
-pub struct PortfolioRow {
+#[derive(Debug, FromRow)]
+pub struct PortfolioMasterRow {
     pub portfolio_id: i32,
     pub slug: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, FromRow)]
+pub struct PortfolioSectionRow {
+    pub section_id: i32,
+    pub portfolio_id: i32,
+    pub section_key: String,
     pub content: String,
     pub created_at: String,
     pub updated_at: String,

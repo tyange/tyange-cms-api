@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use poem::{EndpointExt, Route, get, http::StatusCode, test::TestClient};
+use poem::{EndpointExt, Route, get, http::StatusCode, put, test::TestClient};
 use serde_json::json;
 use sqlx::{SqlitePool, query_scalar};
 
@@ -10,6 +10,7 @@ use crate::{
     routes::{
         delete_portfolio::delete_portfolio, get_portfolio::get_portfolio,
         update_portfolio::update_portfolio,
+        update_portfolio_section::update_portfolio_section,
     },
 };
 
@@ -118,6 +119,22 @@ async fn get_portfolio_returns_not_found_initially_and_put_creates_and_updates_i
         .array()
         .get(1)
         .assert_string("TypeScript 전환");
+
+    // GET should return the saved document
+    let fetched = cli.get("/portfolio").send().await;
+    fetched.assert_status_is_ok();
+    let fetched_json = fetched.json().await;
+    fetched_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("identity")
+        .object()
+        .get("email")
+        .assert_string("usun16@gmail.com");
 }
 
 #[tokio::test]
@@ -164,4 +181,89 @@ async fn delete_portfolio_removes_document() {
         .expect("failed to query portfolio after delete");
 
     assert!(remaining.is_none());
+
+    let section_count: i32 =
+        query_scalar("SELECT COUNT(*) FROM portfolio_section")
+            .fetch_one(&state.db)
+            .await
+            .expect("failed to count sections");
+
+    assert_eq!(section_count, 0);
+}
+
+#[tokio::test]
+async fn update_section_updates_individual_section() {
+    let state = create_state().await;
+    let cli = TestClient::new(
+        Route::new()
+            .at("/portfolio", get(get_portfolio).put(update_portfolio))
+            .at("/portfolio/sections/:section_key", put(update_portfolio_section))
+            .data(state),
+    );
+
+    // Create initial portfolio
+    cli.put("/portfolio")
+        .body_json(&json!({
+            "content": {
+                "slug": "dev",
+                "version": 1,
+                "identity": {
+                    "name": "Before",
+                    "role": "dev",
+                    "location": "Seoul",
+                    "availability": "",
+                    "email": "old@example.com",
+                    "github_url": ""
+                },
+                "featured_projects": []
+            }
+        }))
+        .send()
+        .await
+        .assert_status_is_ok();
+
+    // Update only the identity section
+    let section_updated = cli
+        .put("/portfolio/sections/identity")
+        .body_json(&json!({
+            "content": {
+                "name": "After",
+                "role": "frontend",
+                "location": "Seoul",
+                "availability": "",
+                "email": "new@example.com",
+                "github_url": "https://github.com/tyange"
+            }
+        }))
+        .send()
+        .await;
+
+    section_updated.assert_status_is_ok();
+
+    // GET should reflect the updated identity
+    let fetched = cli.get("/portfolio").send().await;
+    fetched.assert_status_is_ok();
+    let fetched_json = fetched.json().await;
+    fetched_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("identity")
+        .object()
+        .get("email")
+        .assert_string("new@example.com");
+    fetched_json
+        .value()
+        .object()
+        .get("data")
+        .object()
+        .get("content")
+        .object()
+        .get("identity")
+        .object()
+        .get("name")
+        .assert_string("After");
 }

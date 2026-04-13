@@ -72,15 +72,31 @@ pub async fn init_db(pool: &SqlitePool) -> Result<()> {
     .await
     .map_err(InternalServerError)?;
 
-    // portfolio
+    // portfolio (master)
     query(
         r#"
         CREATE TABLE IF NOT EXISTS portfolio (
-            portfolio_id INTEGER PRIMARY KEY,
-            slug TEXT NOT NULL DEFAULT 'dev',
+            portfolio_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug TEXT NOT NULL UNIQUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(InternalServerError)?;
+
+    // portfolio_section
+    query(
+        r#"
+        CREATE TABLE IF NOT EXISTS portfolio_section (
+            section_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            portfolio_id INTEGER NOT NULL,
+            section_key TEXT NOT NULL,
             content TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(portfolio_id, section_key)
         )
         "#,
     )

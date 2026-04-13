@@ -51,6 +51,7 @@ use crate::routes::signup::signup;
 use crate::routes::update_active_budget::update_active_budget;
 use crate::routes::update_my_profile::update_my_profile;
 use crate::routes::update_portfolio::update_portfolio;
+use crate::routes::update_portfolio_section::update_portfolio_section;
 use crate::routes::update_post::update_post;
 use crate::routes::update_spending::update_spending;
 use crate::routes::upload_image::upload_image;
@@ -142,6 +143,12 @@ async fn main() -> Result<(), std::io::Error> {
             .at(
                 "/portfolio/update",
                 put(update_portfolio).with(AdminOnly).with(Auth),
+            )
+            .at(
+                "/portfolio/sections/:section_key",
+                put(update_portfolio_section)
+                    .with(AdminOnly)
+                    .with(Auth),
             )
             .at(
                 "/upload-image",
