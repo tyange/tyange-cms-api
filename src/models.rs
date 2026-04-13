@@ -173,10 +173,6 @@ pub struct PortfolioIdentity {
     pub name: String,
     pub email: String,
     pub github_url: String,
-    #[serde(default)]
-    pub blog_url: Option<String>,
-    #[serde(default)]
-    pub velog_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
