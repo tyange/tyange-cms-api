@@ -171,9 +171,6 @@ pub struct PortfolioLink {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortfolioIdentity {
     pub name: String,
-    pub role: String,
-    pub location: String,
-    pub availability: String,
     pub email: String,
     pub github_url: String,
     #[serde(default)]
