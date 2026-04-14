@@ -100,6 +100,17 @@ pub async fn update_portfolio(
                 StatusCode::BAD_REQUEST,
             )
         })?;
+    let intro_json = content
+        .intro
+        .as_ref()
+        .map(|i| serde_json::to_string(i))
+        .transpose()
+        .map_err(|err| {
+            Error::from_string(
+                format!("intro 직렬화 실패: {}", err),
+                StatusCode::BAD_REQUEST,
+            )
+        })?;
 
     // Upsert all sections
     let pool = &data.db;
@@ -149,6 +160,28 @@ pub async fn update_portfolio(
             .map_err(|err| {
                 Error::from_string(
                     format!("career 섹션 삭제 실패: {}", err),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?;
+    }
+
+    if let Some(intro_str) = &intro_json {
+        upsert_section(pool, portfolio_id, "intro", intro_str)
+            .await
+            .map_err(|err| {
+                Error::from_string(
+                    format!("intro 섹션 저장 실패: {}", err),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?;
+    } else {
+        query("DELETE FROM portfolio_section WHERE portfolio_id = ? AND section_key = 'intro'")
+            .bind(portfolio_id)
+            .execute(pool)
+            .await
+            .map_err(|err| {
+                Error::from_string(
+                    format!("intro 섹션 삭제 실패: {}", err),
                     StatusCode::INTERNAL_SERVER_ERROR,
                 )
             })?;
